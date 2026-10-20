@@ -322,6 +322,85 @@ function addApp(app) {
   renderApps(app.label);
 }
 
+const WALLPAPERS = [
+  { id: "warm", name: "Warm" },
+  { id: "dusk", name: "Dämmerung" },
+  { id: "forest", name: "Wald" },
+  { id: "sea", name: "See" },
+  { id: "night", name: "Nacht" },
+  { id: "ink", name: "Tinte" },
+  { id: "graphite", name: "Graphit" },
+  { id: "mist", name: "Nebel" },
+  { id: "stone", name: "Stein" },
+  { id: "sand", name: "Sand" },
+];
+const WALL_FILE = { id: "file", name: "Eigenes Bild" };
+let wallpaperIndex = 0;
+let wallpaperUrl = "";
+let wallFocus = 0;
+
+function paintWallpaper() {
+  const bg = document.querySelector(".bg");
+  const current = WALLPAPERS[wallpaperIndex];
+  const custom = wallpaperUrl && wallpaperIndex < 0;
+  bg.dataset.wallpaper = custom ? "custom" : current.id;
+  bg.style.backgroundImage = custom ? `url("${wallpaperUrl}")` : "";
+  bg.style.backgroundSize = custom ? "cover" : "";
+  bg.style.backgroundPosition = custom ? "center" : "";
+  document.getElementById("wallpaper-name").textContent = custom ? "Eigenes Bild" : current.name;
+  if (!custom) localStorage.setItem("wallpaper", current.id);
+}
+
+function wallChoices() {
+  return [...WALLPAPERS, WALL_FILE];
+}
+
+function openWallMenu() {
+  const choices = wallChoices();
+  const currentId = wallpaperIndex < 0 ? "file" : WALLPAPERS[wallpaperIndex].id;
+  wallFocus = Math.max(0, choices.findIndex((item) => item.id === currentId));
+  document.getElementById("wall-grid").innerHTML = choices.map((item) => `
+    <button type="button" class="wall-option" data-id="${item.id}">
+      <i class="wall-swatch" data-wall="${item.id}"></i>
+      <span>${item.name}</span>
+    </button>
+  `).join("");
+  document.getElementById("wall-menu").hidden = false;
+  paintWallFocus();
+}
+
+function paintWallFocus() {
+  const currentId = wallpaperIndex < 0 ? "file" : WALLPAPERS[wallpaperIndex].id;
+  [...document.querySelectorAll("#wall-grid button")].forEach((button, index) => {
+    button.classList.toggle("is-focused", index === wallFocus);
+    button.classList.toggle("is-on", button.dataset.id === currentId);
+  });
+}
+
+function closeWallMenu() {
+  document.getElementById("wall-menu").hidden = true;
+}
+
+function chooseWall(id) {
+  if (id === "file") {
+    document.getElementById("wallpaper-file").click();
+    return;
+  }
+  wallpaperUrl = "";
+  wallpaperIndex = WALLPAPERS.findIndex((item) => item.id === id);
+  paintWallpaper();
+  closeWallMenu();
+}
+
+function useWallpaperFile(file) {
+  if (!file) return;
+  if (wallpaperUrl.startsWith("blob:")) URL.revokeObjectURL(wallpaperUrl);
+  wallpaperUrl = URL.createObjectURL(file);
+  wallpaperIndex = -1;
+  paintWallpaper();
+  closeWallMenu();
+}
+
 function toggleMotion() {
   motionOn = !motionOn;
   document.getElementById("stage").classList.toggle("is-calm", !motionOn);
@@ -587,6 +666,19 @@ document.addEventListener("keydown", (e) => {
     wake();
     return;
   }
+  if (!document.getElementById("wall-menu").hidden) {
+    e.preventDefault();
+    const choices = wallChoices();
+    const cols = 4;
+    if (e.key === "Escape") closeWallMenu();
+    else if (e.key === "ArrowRight") wallFocus = Math.min(choices.length - 1, wallFocus + 1);
+    else if (e.key === "ArrowLeft") wallFocus = Math.max(0, wallFocus - 1);
+    else if (e.key === "ArrowDown") wallFocus = Math.min(choices.length - 1, wallFocus + cols);
+    else if (e.key === "ArrowUp") wallFocus = Math.max(0, wallFocus - cols);
+    else if (e.key === "Enter") chooseWall(choices[wallFocus].id);
+    paintWallFocus();
+    return;
+  }
   if (stage.classList.contains("is-ambient")) {
     wake();
     return;
@@ -631,7 +723,8 @@ document.addEventListener("keydown", (e) => {
         item.dispatchEvent(new Event("input", { bubbles: true }));
       }
     } else if (e.key === "Enter" && item) {
-      if (item.id === "motion-toggle") toggleMotion();
+      if (item.id === "wallpaper-btn") openWallMenu();
+      else if (item.id === "motion-toggle") toggleMotion();
       else if (item.dataset.minutes != null) armSleep(Number(item.dataset.minutes));
       else if (item.id === "sleep-custom") applyCustomSleep();
       else if (item.id === "memory-btn") freeMemory();
@@ -678,6 +771,9 @@ document.addEventListener("keydown", (e) => {
   } else if (e.key === "t" || e.key === "T") {
     roomsOn = !roomsOn;
     renderClimate();
+  } else if (e.key === "f" || e.key === "F") {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
   } else if (e.key === "s" || e.key === "S") {
     spotifyOn = !spotifyOn;
     if (spotifyOn) trackStarted = performance.now();
@@ -770,11 +866,26 @@ function renderDevices() {
 
 let toastTimer;
 
+const savedWallpaper = localStorage.getItem("wallpaper");
+const savedWallpaperIndex = WALLPAPERS.findIndex((item) => item.id === savedWallpaper);
+if (savedWallpaperIndex >= 0) wallpaperIndex = savedWallpaperIndex;
+paintWallpaper();
+
 requestAnimationFrame(tickClock);
 build();
 updateWeather();
 setInterval(updateWeather, 15 * 60 * 1000);
 document.getElementById("settings-btn").addEventListener("click", () => (settingsOpen ? closeSettings() : openSettings()));
+document.getElementById("wallpaper-btn").addEventListener("click", openWallMenu);
+document.getElementById("wall-menu").addEventListener("click", (event) => {
+  const option = event.target.closest(".wall-option");
+  if (option) chooseWall(option.dataset.id);
+  else if (event.target.id === "wall-menu") closeWallMenu();
+});
+document.getElementById("wallpaper-file").addEventListener("change", (event) => {
+  useWallpaperFile(event.target.files && event.target.files[0]);
+  event.target.value = "";
+});
 document.getElementById("motion-toggle").addEventListener("click", toggleMotion);
 document.getElementById("brightness").addEventListener("input", (event) => {
   document.querySelector(".screen").style.setProperty("--screen-bright", String(event.target.value / 100));

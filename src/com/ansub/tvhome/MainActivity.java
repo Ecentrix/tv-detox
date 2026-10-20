@@ -30,6 +30,7 @@ import android.net.NetworkRequest;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import java.io.InputStream;
 import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -38,6 +39,7 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.widget.GridLayout;
 import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -130,7 +132,9 @@ public class MainActivity extends Activity {
     private Runnable sleepTask;
     private FrameLayout stage;
     private TextView weatherView, pageDots;
-    private View settingsLayer, ambientLayer, nightLayer, powerLayer;
+    private View settingsLayer, wallpaperLayer, ambientLayer, nightLayer, powerLayer;
+    private TextView wallpaperRow;
+    private static final int PICK_WALL = 41;
 
     // Apps installed, removed or updated. This often lands once Home is already back in front (an app
     // uninstalled from the menu is gone only after Android's prompt has closed), so catch up then.
@@ -160,7 +164,6 @@ public class MainActivity extends Activity {
         saveConfig(getIntent());
         loadFonts();
         scale = getResources().getDisplayMetrics().widthPixels / 1920f;
-        getWindow().setBackgroundDrawable(background());
 
         ScrollView scroller = new ScrollView(this);
         scroller.setFillViewport(true);
@@ -199,6 +202,7 @@ public class MainActivity extends Activity {
         motionOn = prefs.getBoolean("motion", true);
         customMinutes = prefs.getInt("sleepCustom", 15);
         applyBrightness(prefs.getInt("bright", 100));
+        applyWallpaper();
         weatherView = text(px(28), 0xE6FFFFFF, regular);
         weatherView.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
         weatherView.setText("…");
@@ -310,6 +314,7 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
+        if (wallpaperLayer != null) { hideWallpaper(); return; }
         if (settingsLayer != null) { hideSettings(); return; }
         if (nightLayer != null) { lateDismissed = true; hideNight(); return; }
         if (powerLayer != null) { hidePower(); return; }
@@ -321,6 +326,24 @@ public class MainActivity extends Activity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) refreshApps();
+    }
+
+    @Override
+    protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (request != PICK_WALL || result != RESULT_OK || data == null || data.getData() == null) return;
+        Uri uri = data.getData();
+        try {
+            getContentResolver().takePersistableUriPermission(uri,
+                    data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (Exception ignored) {}
+        getSharedPreferences(PREFS, 0).edit()
+                .putString("wallpaper", "custom")
+                .putString("wallpaperUri", uri.toString())
+                .apply();
+        applyWallpaper();
+        hideWallpaper();
+        if (wallpaperRow != null) wallpaperRow.setText(wallpaperLabel());
     }
 
     // Rebuilds the tiles if apps changed, but only while Home is in front with no menu open and no
@@ -1304,7 +1327,8 @@ public class MainActivity extends Activity {
 
     private void bumpIdle() {
         ui.removeCallbacks(goAmbient);
-        if (ambientLayer == null && settingsLayer == null && nightLayer == null && powerLayer == null)
+        if (ambientLayer == null && settingsLayer == null && wallpaperLayer == null
+                && nightLayer == null && powerLayer == null)
             ui.postDelayed(goAmbient, 3L * 60L * 1000L);
     }
 
@@ -1359,6 +1383,9 @@ public class MainActivity extends Activity {
             buildTiles();
             showSettings();
         }), gap);
+
+        wallpaperRow = settingsRow(wallpaperLabel(), this::showWallpaper);
+        menu.addView(wallpaperRow, gap);
 
         TextView sleep = text(px(22), 0xB3FFFFFF, regular);
         sleep.setText(de("TV ausschalten nach", "Turn the TV off after"));
@@ -1431,6 +1458,214 @@ public class MainActivity extends Activity {
         if (settingsLayer == null) return;
         stage.removeView(settingsLayer);
         settingsLayer = null;
+        wallpaperRow = null;
+        bumpIdle();
+    }
+
+    // id, German name, English name. Null colours means the original warm background.
+    private static final String[][] WALLS = {
+            {"warm", "Warm", "Warm"},
+            {"dusk", "Dämmerung", "Dusk"},
+            {"forest", "Wald", "Forest"},
+            {"sea", "See", "Sea"},
+            {"night", "Nacht", "Night"},
+            {"ink", "Tinte", "Ink"},
+            {"graphite", "Graphit", "Graphite"},
+            {"mist", "Nebel", "Mist"},
+            {"stone", "Stein", "Stone"},
+            {"sand", "Sand", "Sand"},
+    };
+    private static final int[][] WALL_COLORS = {
+            null,
+            {0xFF1A1030, 0xFF3A1D3A, 0xFFC46A3A, 0xFF1A0C10},
+            {0xFF10241C, 0xFF1A3830, 0xFF234838, 0xFF0C1612},
+            {0xFF0C1C3A, 0xFF1A3A5C, 0xFFC47A4A, 0xFF1A120C},
+            {0xFF070814, 0xFF12182E, 0xFF05060C},
+            {0xFF121316, 0xFF070708},
+            {0xFF23262B, 0xFF121316},
+            {0xFF2A343C, 0xFF15191D},
+            {0xFF322E2B, 0xFF161412},
+            {0xFF3C352C, 0xFF1B1713},
+    };
+
+    private String wallpaperId() {
+        String id = getSharedPreferences(PREFS, 0).getString("wallpaper", "warm");
+        for (String[] wall : WALLS) if (wall[0].equals(id)) return id;
+        return "custom".equals(id) ? id : "warm";
+    }
+
+    private int wallIndex(String id) {
+        for (int i = 0; i < WALLS.length; i++) if (WALLS[i][0].equals(id)) return i;
+        return -1;
+    }
+
+    private String wallName(String id) {
+        int i = wallIndex(id);
+        if (i < 0) return de("Eigenes Bild", "Your picture");
+        return de(WALLS[i][1], WALLS[i][2]);
+    }
+
+    private String wallpaperLabel() {
+        return de("Hintergrund", "Wallpaper") + " · " + wallName(wallpaperId());
+    }
+
+    private void applyWallpaper() {
+        getWindow().setBackgroundDrawable(wallpaperDrawable(wallpaperId()));
+    }
+
+    private Drawable wallpaperDrawable(String id) {
+        if ("custom".equals(id)) {
+            Drawable photo = customWallpaper();
+            if (photo != null) return photo;
+        }
+        int i = wallIndex(id);
+        if (i <= 0) return background();
+        GradientDrawable fill = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, WALL_COLORS[i]);
+        fill.setDither(true);
+        return fill;
+    }
+
+    private Drawable customWallpaper() {
+        String raw = getSharedPreferences(PREFS, 0).getString("wallpaperUri", null);
+        if (raw == null) return null;
+        InputStream in = null;
+        InputStream in2 = null;
+        try {
+            Uri uri = Uri.parse(raw);
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            in = getContentResolver().openInputStream(uri);
+            BitmapFactory.decodeStream(in, null, bounds);
+            int wide = Math.max(1, bounds.outWidth);
+            int target = Math.max(1280, getResources().getDisplayMetrics().widthPixels);
+            int sample = 1;
+            while (wide / sample > target * 2) sample *= 2;
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inSampleSize = sample;
+            in2 = getContentResolver().openInputStream(uri);
+            Bitmap bmp = BitmapFactory.decodeStream(in2, null, opts);
+            if (bmp == null) return null;
+            BitmapDrawable photo = new BitmapDrawable(getResources(), bmp);
+            photo.setGravity(Gravity.FILL);
+            GradientDrawable scrim = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[] {0x48000000, 0x14000000, 0x80000000});
+            return new LayerDrawable(new Drawable[] {photo, scrim});
+        } catch (Exception ignored) {
+            return null;
+        } finally {
+            try { if (in != null) in.close(); } catch (Exception ignored) {}
+            try { if (in2 != null) in2.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    private void selectWallpaper(String id) {
+        getSharedPreferences(PREFS, 0).edit().putString("wallpaper", id).apply();
+        applyWallpaper();
+        hideWallpaper();
+        if (wallpaperRow != null) wallpaperRow.setText(wallpaperLabel());
+    }
+
+    private void pickWallpaper() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/*");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try {
+            startActivityForResult(intent, PICK_WALL);
+        } catch (Exception ignored) {
+            android.widget.Toast.makeText(this, de("Dieser Fernseher hat keine Bildauswahl.",
+                    "This TV has no picture picker."), android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void showWallpaper() {
+        if (wallpaperLayer != null) return;
+        FrameLayout layer = new FrameLayout(this);
+        layer.setBackgroundColor(0x9E000000);
+        layer.setOnClickListener(v -> hideWallpaper());
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setClickable(true);
+        GradientDrawable cardBg = new GradientDrawable();
+        cardBg.setColor(0xFF161311);
+        cardBg.setCornerRadius(px(28));
+        card.setBackground(cardBg);
+        card.setPadding(px(36), px(32), px(36), px(36));
+        TextView kicker = text(px(18), 0x8FFFFFFF, regular);
+        kicker.setText(de("Hintergrund", "Wallpaper"));
+        card.addView(kicker);
+        TextView title = text(px(36), Color.WHITE, semibold);
+        title.setText("Wallpaper");
+        LinearLayout.LayoutParams titleGap = new LinearLayout.LayoutParams(-2, -2);
+        titleGap.topMargin = px(4);
+        card.addView(title, titleGap);
+
+        GridLayout grid = new GridLayout(this);
+        grid.setColumnCount(4);
+        String current = wallpaperId();
+        View focus = null;
+        for (int i = 0; i < WALLS.length; i++) {
+            final String id = WALLS[i][0];
+            View cell = wallCell(wallName(id), swatch(i), () -> selectWallpaper(id));
+            if (id.equals(current)) focus = cell;
+            grid.addView(cell);
+        }
+        View file = wallCell(de("Eigenes Bild", "Your picture"), swatch(-1), this::pickWallpaper);
+        if ("custom".equals(current)) focus = file;
+        grid.addView(file);
+        LinearLayout.LayoutParams gridGap = new LinearLayout.LayoutParams(-2, -2);
+        gridGap.topMargin = px(22);
+        card.addView(grid, gridGap);
+
+        FrameLayout.LayoutParams cp = new FrameLayout.LayoutParams(px(980), -2);
+        cp.gravity = Gravity.CENTER;
+        layer.addView(card, cp);
+        stage.addView(layer, new FrameLayout.LayoutParams(-1, -1));
+        wallpaperLayer = layer;
+        (focus != null ? focus : grid.getChildAt(0)).requestFocus();
+        bumpIdle();
+    }
+
+    private Drawable swatch(int index) {
+        GradientDrawable fill = index < 0
+                ? new GradientDrawable()
+                : new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                        index == 0 ? new int[] {0xFF15100F, 0xFF0A0809, 0xFF050405} : WALL_COLORS[index]);
+        if (index < 0) fill.setColor(0xFF1A1816);
+        fill.setCornerRadius(px(10));
+        fill.setDither(true);
+        return fill;
+    }
+
+    private LinearLayout wallCell(String name, Drawable swatch, Runnable action) {
+        LinearLayout cell = new LinearLayout(this);
+        cell.setOrientation(LinearLayout.VERTICAL);
+        cell.setFocusable(true);
+        cell.setClickable(true);
+        cell.setPadding(px(8), px(8), px(8), px(8));
+        GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
+        lp.width = px(210);
+        lp.setMargins(px(8), px(8), px(8), px(8));
+        cell.setLayoutParams(lp);
+        View chip = new View(this);
+        chip.setBackground(swatch);
+        cell.addView(chip, new LinearLayout.LayoutParams(-1, px(84)));
+        TextView label = text(px(18), 0xCFFFFFFF, regular);
+        label.setText(name);
+        label.setPadding(0, px(8), 0, 0);
+        cell.addView(label);
+        GradientDrawable hi = new GradientDrawable();
+        hi.setCornerRadius(px(12));
+        cell.setBackground(hi);
+        cell.setOnFocusChangeListener((v, has) -> hi.setColor(has ? 0x33FFFFFF : Color.TRANSPARENT));
+        cell.setOnClickListener(v -> action.run());
+        return cell;
+    }
+
+    private void hideWallpaper() {
+        if (wallpaperLayer == null) return;
+        stage.removeView(wallpaperLayer);
+        wallpaperLayer = null;
         bumpIdle();
     }
 
@@ -1487,7 +1722,8 @@ public class MainActivity extends Activity {
     }
 
     private void showAmbient() {
-        if (ambientLayer != null || settingsLayer != null || nightLayer != null || powerLayer != null) return;
+        if (ambientLayer != null || settingsLayer != null || wallpaperLayer != null
+                || nightLayer != null || powerLayer != null) return;
         FrameLayout layer = new FrameLayout(this);
         layer.setBackgroundColor(0xF0050405);
         layer.setClickable(true);

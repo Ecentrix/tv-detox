@@ -7,11 +7,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="preview.css?v=37" />
+  <link rel="stylesheet" href="preview.css?v=42" />
 </head>
 <body>
   <div class="stage-wrap">
-    <p class="hint">Einstellungen oben rechts · fünf Apps pro Seite · halten und verschieben · S Spotify · B Abendfrage · W Waschmaschine · R Saugroboter · T Temperaturen</p>
+    <p class="hint">Einstellungen oben rechts · fünf Apps pro Seite · halten und verschieben · S Spotify · B Abendfrage · W Waschmaschine · R Saugroboter · T Temperaturen · F Vollbild</p>
     <div class="stage" id="stage" tabindex="0" role="application" aria-label="TV Detox Homescreen Preview">
       <div class="bg" aria-hidden="true">
         <div class="bg-glow bg-glow-a"></div>
@@ -92,6 +92,10 @@
           <span>Helligkeit</span>
           <input id="brightness" type="range" min="25" max="100" value="100" />
         </label>
+        <button type="button" class="settings-choice" id="wallpaper-btn">
+          <span>Hintergrund</span>
+          <span class="settings-value" id="wallpaper-name">Warm</span>
+        </button>
         <button type="button" class="settings-choice" id="motion-toggle">Animationen an</button>
         <p class="settings-label">Fernseher aus nach</p>
         <div class="sleep-row" id="sleep-row">
@@ -124,6 +128,14 @@
         </div>
       </div>
 
+      <div class="wall-menu" id="wall-menu" hidden>
+        <div class="wall-card">
+          <p class="night-kicker">Hintergrund</p>
+          <p class="night-title">Wallpaper</p>
+          <div class="wall-grid" id="wall-grid"></div>
+        </div>
+      </div>
+
       <div class="picker" id="picker" hidden>
         <div class="picker-card">
           <p class="night-kicker">Beispiel</p>
@@ -144,6 +156,7 @@
       </div>
     </div>
   </div>
-  <script src="preview.js?v=37"></script>
+  <input id="wallpaper-file" type="file" accept="image/*" hidden />
+  <script src="preview.js?v=42"></script>
 </body>
 </html>

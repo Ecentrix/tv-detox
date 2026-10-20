@@ -1,5 +1,7 @@
 # App neu bauen
 
+Die komplette Reihenfolge von Entwicklermodus bis Hintergrund und Aufräumen steht in [anleitung.md](anleitung.md).
+
 Die Skripte sind Shell-Dateien. Auf Windows in **Git Bash** ausführen, im Projektordner.
 
 ## Voraussetzungen

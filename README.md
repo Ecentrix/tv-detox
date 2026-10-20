@@ -2,375 +2,383 @@
 
 # TV Detox
 
-### Make an old, slow Android TV fast again.
+### Ein ruhiger Startbildschirm für einen alten Android-TV.
 
-Claude Code or Codex does the work. You just press OK on the remote.
+Meine Fassung von [Ansub/tv-detox](https://github.com/Ansub/tv-detox): Uhr, Wetter, Weiter-gucken, eigener Hintergrund, und auf Wunsch die Home-Assistant-Zeile.
 
-[![Release](https://img.shields.io/github/v/release/Ansub/tv-detox?color=black)](https://github.com/Ansub/tv-detox/releases/latest)
-[![Tests](https://img.shields.io/github/actions/workflow/status/Ansub/tv-detox/build.yml?branch=main&label=tests)](https://github.com/Ansub/tv-detox/actions)
+Bauen und auf den Fernseher bringen: [docs/anleitung.md](docs/anleitung.md).
+
 [![License](https://img.shields.io/badge/license-MIT-black)](LICENSE)
-[![YouTube](https://img.shields.io/badge/YouTube-@ansubkhan-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@ansubkhan)
 
-<img src="docs/home-screen.png" alt="The TV Detox home screen" width="100%">
+### Mit Home Assistant
+
+<img src="docs/home-with-assistant.png" alt="Startbildschirm mit Raumtemperaturen, Waschmaschine und Saugroboter" width="100%">
+
+Raumtemperaturen oben rechts, Waschmaschine und Saugroboter unten.
+
+### Ohne Home Assistant
+
+<img src="docs/home-without-assistant.png" alt="Startbildschirm ohne Home-Assistant-Zeile" width="100%">
+
+Dieselbe Fläche: Uhr, Wetter, Apps und Weiter-gucken.
 
 </div>
 
+Die Home-Assistant-Zeile (Räume, Waschmaschine, Saugroboter) zeigt die Vorschau mit Beispieldaten. Auf dem Fernseher sind Uhr, Wetter, Weiter-gucken und der Hintergrund.
+
 <table>
 <tr>
-<td width="33%" valign="top"><b>🧹 Removes the junk</b><br>Bloatware, ads and sponsored rows, gone.</td>
-<td width="33%" valign="top"><b>📺 A calm home screen</b><br>Your apps, your HDMI inputs and a clock. Nothing else.</td>
-<td width="33%" valign="top"><b>↩️ Undo anytime</b><br>Apps are turned off, never deleted.</td>
+<td width="33%" valign="top"><b>🧹 Räumt den Ballast weg</b><br>Bloatware, Werbung und gesponserte Zeilen sind weg.</td>
+<td width="33%" valign="top"><b>📺 Ein ruhiger Startbildschirm</b><br>Deine Apps, deine HDMI-Eingänge und eine Uhr. Sonst nichts.</td>
+<td width="33%" valign="top"><b>↩️ Jederzeit zurück</b><br>Apps werden ausgeschaltet, nie gelöscht.</td>
 </tr>
 </table>
 
-## Watch it work
+## Loslegen
 
-<a href="https://www.youtube.com/watch?v=fP2SGGVsaB0"><img src="https://img.youtube.com/vi/fP2SGGVsaB0/maxresdefault.jpg" alt="Watch: Claude Made My Old Android TV Feel Brand New" width="100%"></a>
+Die durchgängige Anleitung für Windows, Bauen, Installieren, Hintergrund und Aufräumen: **[docs/anleitung.md](docs/anleitung.md)**.
 
-**[▶ Claude Made My Old Android TV Feel Brand New](https://www.youtube.com/watch?v=fP2SGGVsaB0)** · the full setup on a real TV, in 4 minutes.
+**1. Entwicklermodus am Fernseher einschalten.**
+Einstellungen → Gerätepräferenzen → Info → **Build** 7-mal drücken. Danach **USB-Debugging** in den **Entwickleroptionen** an. [Hängt es?](#hilfe)
 
-## Get started
+**2. [Claude Code](https://claude.com/claude-code) oder [Codex](https://openai.com/codex) auf dem Laptop öffnen.**
+Laptop und Fernseher müssen im selben WLAN sein. Ohne KI reicht [docs/anleitung.md](docs/anleitung.md).
 
-**1. Turn on developer mode on the TV.**
-Settings → Device Preferences → About → press **Build** 7 times. Then turn on **USB debugging** in **Developer options**. [Stuck?](#help)
-
-**2. Open [Claude Code](https://claude.com/claude-code) or [Codex](https://openai.com/codex) on your laptop.**
-The laptop and TV must be on the same Wi-Fi.
-
-**3. Paste this in.**
+**3. Diesen Text einfügen.**
 
 ```text
-Help me clean up my Android TV and make it faster.
-My TV is a <brand and model>.
+Hilf mir, meinen Android-TV aufzuräumen und schneller zu machen.
+Mein Fernseher ist ein <Marke und Modell>.
 
-1. Connect to my TV over Wi-Fi. Walk me through anything
-   I need to tap on the TV.
-2. Before changing anything, list every app in plain English:
-   safe to turn off, needed by the TV, and apps I use.
-   Check free memory.
-3. Ask me before every change. Turn apps off instead of
-   deleting them. Keep a list of what you changed and how
-   to undo it.
-4. Never turn off: Google Play services
-   (com.google.android.gms), Google Play, Settings,
-   System UI, setup apps, the keyboard, Bluetooth, my HDMI
-   inputs, the TV's input and tuner framework, or anything
-   else the TV needs to start. If you're not sure, leave
-   it on. The one exception: if install.sh offers to turn
-   off Google TV's setup app because it's taking over Home,
-   ask me first.
-5. Install the home screen: download
-   https://github.com/Ansub/tv-detox and run its
-   install.sh with my TV and these apps: <your apps>.
-6. Turn off animations and the screensaver, and make the TV
-   sleep after 5 minutes.
-7. Wait 30 seconds after the last change, then restart the
-   TV once and check it starts up normally before you say
-   you're done. Show me free memory before
-   and after.
+1. Verbinde dich über WLAN mit dem Fernseher. Führe mich durch
+   alles, was ich am Gerät tippen muss.
+2. Bevor du etwas änderst, liste jede App auf Deutsch:
+   gefahrlos aus, vom Fernseher gebraucht, und Apps, die ich nutze.
+   Prüfe den freien Speicher.
+3. Frag mich vor jeder Änderung. Schalte Apps aus, statt sie
+   zu löschen. Führe eine Liste, was du geändert hast und wie
+   man es rückgängig macht.
+4. Nie ausschalten: Google-Play-Dienste
+   (com.google.android.gms), Google Play, Einstellungen,
+   Systemoberfläche, Einrichtungs-Apps, die Tastatur, Bluetooth,
+   meine HDMI-Eingänge, das Eingangs- und Tuner-Framework des
+   Fernsehers, und alles andere, das der Fernseher zum Starten
+   braucht. Im Zweifel an lassen. Die eine Ausnahme: wenn
+   install.sh anbietet, die Einrichtungs-App von Google TV
+   auszuschalten, weil sie Home übernimmt, frag mich zuerst.
+5. Installiere den Startbildschirm aus diesem Projektordner:
+   sh build.sh und danach sh install.sh mit meinem Fernseher
+   und diesen Apps: <deine Apps>.
+6. Schalte Animationen und den Bildschirmschoner aus und lass
+   den Fernseher nach 5 Minuten schlafen.
+7. Warte 30 Sekunden nach der letzten Änderung, starte den
+   Fernseher einmal neu und prüfe, dass er normal hochfährt,
+   bevor du sagst, du bist fertig. Zeig mir den freien Speicher
+   davor und danach.
 ```
 
-That's it. It asks you before every change.
+Danach fragt es vor jeder Änderung.
 
 > [!NOTE]
-> This is what worked for us, not professional advice. Use it at your own risk. You're responsible for your own TV, and I'm not liable if something goes wrong.
+> Das hat bei uns funktioniert, es ist kein professioneller Rat. Nutzung auf eigenes Risiko. Du bist für deinen Fernseher verantwortlich.
 
-## Help
+## Hilfe
 
 <details>
-<summary><b>How do I turn on developer mode?</b></summary>
+<summary><b>Wie schalte ich den Entwicklermodus ein?</b></summary>
 <br>
 
-1. On the TV, open **Settings**, then **Device Preferences** (or **System**), then **About**.
-2. Press OK on **Build** 7 times until you see "You are now a developer."
-3. Go back, open **Developer options** and turn on **USB debugging**. If you see **Network debugging** or **Wireless debugging**, turn that on too.
-4. The first time your laptop connects, the TV asks "Allow debugging?" Tick "Always allow" and press **Allow**.
+1. Am Fernseher **Einstellungen**, dann **Gerätepräferenzen** (oder **System**), dann **Info**.
+2. Auf **Build** 7-mal OK drücken, bis „Du bist jetzt Entwickler“ erscheint.
+3. Zurück, **Entwickleroptionen** öffnen und **USB-Debugging** einschalten. Gibt es **Netzwerk-Debugging** oder **Wireless debugging**, das auch einschalten.
+4. Beim ersten Verbinden fragt der Fernseher „Debugging zulassen?“. „Immer zulassen“ anhaken und **Zulassen** drücken.
 
-Menus differ a bit by brand. If you're stuck, ask Claude or Codex: *"I have a \<brand and model\> TV. How can you connect to it from my laptop and take control of it?"*
+Die Menüs unterscheiden sich je nach Marke. Wenn es hakt: *„Ich habe einen Fernseher \<Marke und Modell\>. Wie verbindest du dich von meinem Laptop und übernimmst die Steuerung?“*
 
 </details>
 
 <details>
-<summary><b>Which TVs does it work on?</b></summary>
+<summary><b>Auf welchen Fernsehern funktioniert das?</b></summary>
 <br>
 
-Android TV 9 (a real TV), 11 and 12, and Google TV 14 (also a real TCL TV, see [TCL notes](#tcl-notes)). Every change is tested automatically on emulators.
+Android TV 9 (ein echter Fernseher), 11 und 12, und Google TV 14 (ebenfalls ein echter TCL, siehe [TCL-Notizen](#tcl-notizen)). Jede Änderung wird automatisch auf Emulatoren geprüft.
 
 </details>
 
 <details>
-<summary><b>Can I do this on a Fire TV, Roku, Samsung or LG?</b></summary>
+<summary><b>Geht das auf Fire TV, Roku, Samsung oder LG?</b></summary>
 <br>
 
-- **Amazon Fire TV:** partly. Fire TV is Android underneath, so the cleanup works. Amazon blocks changing the home screen on current Fire TVs, so you keep Amazon's. Tell Claude what you want to keep, like Alexa voice search on the remote.
-- **Roku:** no. Roku runs its own system, not Android, so nothing can connect to it to turn things off.
-- **Samsung (Tizen):** no, for the same reason.
-- **LG (webOS):** no. You can still cut down the ads by turning off **Home Promotion** and **Content Recommendation** in the TV's home settings.
+- **Amazon Fire TV:** teilweise. Fire TV ist darunter Android, das Aufräumen funktioniert. Amazon blockiert auf aktuellen Fire TVs den Wechsel des Startbildschirms, du behältst also Amazons Bildschirm. Sag, was bleiben soll, zum Beispiel Alexa-Sprachsuche auf der Fernbedienung.
+- **Roku:** nein. Roku hat ein eigenes System, kein Android. Nichts kann sich verbinden und Apps ausschalten.
+- **Samsung (Tizen):** nein, aus demselben Grund.
+- **LG (webOS):** nein. Werbung lässt sich trotzdem eindämmen, indem du **Home-Promotion** und **Inhaltsempfehlung** in den Home-Einstellungen des Fernsehers ausschaltest.
 
-If your TV or streaming box runs Android TV or Google TV, it should work. That includes many Sony, TCL, Hisense, Philips and Xiaomi TVs, Chromecast with Google TV and Nvidia Shield. Some of those brands also sell Roku or other non-Android models, so check **Settings > About** if you're not sure.
+Läuft der Fernseher oder die Streaming-Box mit Android TV oder Google TV, sollte es gehen. Dazu gehören viele Sony, TCL, Hisense, Philips und Xiaomi, Chromecast mit Google TV und Nvidia Shield. Manche dieser Marken verkaufen auch Roku oder andere Systeme. Im Zweifel unter **Einstellungen > Info** nachsehen.
 
 </details>
 
 <details>
-<summary><b>What about projectors or Android phones?</b></summary>
+<summary><b>Was ist mit Projektoren oder Android-Handys?</b></summary>
 <br>
 
-- **Android projectors:** probably. If it has **Developer options** and **USB debugging**, the cleanup should work. Cheap projectors often run a custom Android, so the home screen may act a bit differently.
-- **Android phones:** only the cleanup. The home screen is made for a TV remote, not touch.
+- **Android-Projektoren:** wahrscheinlich. Gibt es **Entwickleroptionen** und **USB-Debugging**, sollte das Aufräumen gehen. Billige Projektoren laufen oft mit einem eigenen Android, der Startbildschirm kann sich etwas anders verhalten.
+- **Android-Handys:** nur das Aufräumen. Der Startbildschirm ist für eine Fernbedienung gebaut, nicht für Touch.
 
 </details>
 
 <details>
-<summary><b>Anything to watch out for on Chromecast with Google TV?</b></summary>
+<summary><b>Worauf achten bei Chromecast mit Google TV?</b></summary>
 <br>
 
-It runs the same Google TV this is tested on, so it should work. People who've done it report two things:
+Darauf läuft dasselbe Google TV, mit dem das geprüft wurde. Zwei Rückmeldungen von Leuten, die es gemacht haben:
 
-- The YouTube button on the remote can stop working, and some lose casting. Tell Claude to keep casting on if you use it.
-- Google TV can bring its own home screen back. If that happens, ask Claude to turn off Google TV's home screen. Leave its setup app on unless it's taking over Home (see below).
+- Die YouTube-Taste der Fernbedienung kann ausfallen, und bei manchen fällt Cast weg. Cast an lassen, wenn du es nutzt.
+- Google TV kann seinen eigenen Startbildschirm zurückholen. Dann den Google-TV-Startbildschirm ausschalten lassen. Die Einrichtungs-App an lassen, außer sie übernimmt Home (siehe unten).
 
 </details>
 
 <details>
-<summary><b>Home opens Google TV's setup screen instead (Sony BRAVIA and others)</b></summary>
+<summary><b>Home öffnet den Einrichtungsbildschirm von Google TV (Sony BRAVIA und andere)</b></summary>
 <br>
 
-On some Google TVs, once Google TV's home screen (`com.google.android.apps.tv.launcherx`) is off, Android picks the setup app (`com.google.android.tungsten.setupwraith`) for Home instead. `install.sh` spots this and asks before turning the setup app off too. It only asks if Home opens exactly that app, Google TV's home screen is already off and the TV has finished its first setup. `YES=1` doesn't turn it off; use `YES_SETUP=1` for that. This worked on a Sony BRAVIA and a TCL Smart TV Pro (Google TV 14), but it hasn't been tested on every TV. `undo.sh` turns it back on.
+Auf manchen Google TVs wählt Android die Einrichtungs-App (`com.google.android.tungsten.setupwraith`) als Home, sobald der Google-TV-Startbildschirm (`com.google.android.apps.tv.launcherx`) aus ist. `install.sh` erkennt das und fragt, bevor es die Einrichtungs-App auch ausschaltet. Es fragt nur, wenn Home genau diese App öffnet, der Google-TV-Startbildschirm schon aus ist und die Ersteinrichtung des Fernsehers fertig ist. `YES=1` schaltet sie nicht aus. Dafür `YES_SETUP=1`. Das hat auf einem Sony BRAVIA und einem TCL Smart TV Pro (Google TV 14) funktioniert, ist aber nicht auf jedem Fernseher geprüft. `undo.sh` schaltet sie wieder ein.
 
-To undo it by hand:
+Von Hand zurück:
 
 ```sh
 adb shell pm enable com.google.android.tungsten.setupwraith
 adb shell pm enable com.google.android.apps.tv.launcherx
 ```
 
-If the TV ever asks to be set up again, or a setup screen won't finish, turn the setup app back on first.
+Fragt der Fernseher wieder nach der Einrichtung, oder bleibt ein Einrichtungsbildschirm hängen, zuerst die Einrichtungs-App wieder einschalten.
 
 </details>
 
-<a id="tcl-notes"></a>
+<a id="tcl-notizen"></a>
 <details>
-<summary><b>TCL TVs: what worked, and what to keep</b></summary>
+<summary><b>TCL-Fernseher: was funktioniert hat und was an bleiben soll</b></summary>
 <br>
 
-Tested on a TCL Smart TV Pro (Google TV, Android 14, 2.3 GB of RAM). Every step below was followed by a restart, and the TV started normally each time. Free memory went from about 660 MB to about 1 GB, though part of that is just from restarting: the first number was taken after the TV had been on for 15 days.
+Geprüft auf einem TCL Smart TV Pro (Google TV, Android 14, 2,3 GB RAM). Nach jedem Schritt unten kam ein Neustart, und der Fernseher startete jedes Mal normal. Der freie Speicher ging von etwa 660 MB auf etwa 1 GB. Ein Teil davon kommt nur vom Neustart: die erste Zahl wurde gemessen, nachdem der Fernseher 15 Tage an war.
 
-**Home screen.** With Google TV's home screen off, Home opened the setup app's recovery screen, as in [#16](https://github.com/Ansub/tv-detox/issues/16). Turning the setup app off too (`YES_SETUP=1`) made this home screen stick, through several restarts.
+**Startbildschirm.** Mit ausgeschaltetem Google-TV-Startbildschirm öffnete Home den Wiederherstellungsbildschirm der Einrichtungs-App, wie in [#16](https://github.com/Ansub/tv-detox/issues/16). Die Einrichtungs-App ebenfalls aus (`YES_SETUP=1`), dann blieb dieser Startbildschirm, über mehrere Neustarts.
 
-**Connect on port 5555.** If you connected with **Wireless debugging** (pairing code), turning the setup app off ends that connection halfway through `install.sh`. The script then says it couldn't turn the setup app off, even though it did. On this TV, the classic port also worked, so you can reconnect with `adb connect <TV_IP>:5555`, check with `adb shell pm list packages -d`, and run `install.sh` again with that address.
+**Verbinden auf Port 5555.** Wer über **Wireless debugging** (Pairing-Code) verbunden war, verliert die Verbindung mitten in `install.sh`, sobald die Einrichtungs-App aus geht. Das Skript sagt dann, es konnte die Einrichtungs-App nicht ausschalten, obwohl es das getan hat. Auf diesem Fernseher ging auch der klassische Port. Neu verbinden mit `adb connect <TV_IP>:5555`, prüfen mit `adb shell pm list packages -d`, und `install.sh` noch einmal mit dieser Adresse.
 
-**Safe to turn off**, if you don't use them:
+**Gefahrlos aus**, wenn du sie nicht nutzt:
 
-| App | Package |
+| App | Paket |
 |---|---|
-| TCL account | `com.tcl.usercenter` |
-| Built-in manual | `com.tcl.ocean.instructions` |
-| TCL Channel (free channels with ads) | `com.tcl.channelplus` |
-| TCL recommendations | `com.tcl.waterfall.overseas` |
-| TCL notifications and promos | `com.tcl.messagebox` |
-| Store demo | `com.tcl.esticker`, `com.tcl.exhibit` |
-| Alexa built-in | `com.tcl.smartalexa` |
-| Phone link | `com.tcl.magiconnectfree` |
-| Repair guide, logs | `com.tcl.repairguide`, `com.tcl.logkit` |
-| Screen mirroring | `com.tcl.miracast` |
-| TCL analytics and Alexa hooks | `com.tcl.ttvs` |
-| TCL interactive and ads service | `com.tcl.interactive` |
-| Game bar for consoles | `com.tcl.gamebar` |
-| Photo viewer, USB media player | `com.tcl.gallery`, `com.tcl.ui_mediaCenter` |
-| App manager | `com.tcl.guard` |
-| Bluetooth "listen alone" | `com.tcl.t_solo` |
-| Google TV's screensaver (about 200 MB) | `com.google.android.apps.tv.dreamx` |
+| TCL-Konto | `com.tcl.usercenter` |
+| Eingebaute Anleitung | `com.tcl.ocean.instructions` |
+| TCL Channel (Gratis-Sender mit Werbung) | `com.tcl.channelplus` |
+| TCL-Empfehlungen | `com.tcl.waterfall.overseas` |
+| TCL-Hinweise und Werbung | `com.tcl.messagebox` |
+| Laden-Demo | `com.tcl.esticker`, `com.tcl.exhibit` |
+| Alexa eingebaut | `com.tcl.smartalexa` |
+| Handy-Verbindung | `com.tcl.magiconnectfree` |
+| Reparaturhilfe, Logs | `com.tcl.repairguide`, `com.tcl.logkit` |
+| Bildschirmspiegelung | `com.tcl.miracast` |
+| TCL-Analyse und Alexa-Anbindung | `com.tcl.ttvs` |
+| TCL-Interaktiv und Werbung | `com.tcl.interactive` |
+| Spielleiste für Konsolen | `com.tcl.gamebar` |
+| Fotobetrachter, USB-Mediaplayer | `com.tcl.gallery`, `com.tcl.ui_mediaCenter` |
+| App-Verwalter | `com.tcl.guard` |
+| Bluetooth „allein hören“ | `com.tcl.t_solo` |
+| Bildschirmschoner von Google TV (etwa 200 MB) | `com.google.android.apps.tv.dreamx` |
 
-**Tiles that stay after the cleanup.** Two TCL tiles can still show up on this home screen. **TCL Channel** is `com.tcl.partnercustomizer`, which also handles the TCL button on the remote. **TCL Home** is `com.tcl.dashboard`, TCL's quick settings panel. Both turned off without trouble.
+**Kacheln, die nach dem Aufräumen bleiben.** Zwei TCL-Kacheln können auf diesem Startbildschirm weiter auftauchen. **TCL Channel** ist `com.tcl.partnercustomizer` und bedient auch die TCL-Taste der Fernbedienung. **TCL Home** ist `com.tcl.dashboard`, das Schnelleinstellungsfeld von TCL. Beide ließen sich ohne Ärger ausschalten.
 
-**Keep these on:**
+**Diese an lassen:**
 
-- `com.tcl.tvinput`: the HDMI inputs and the tuner.
-- `com.tcl.suspension`: the input picker.
-- `com.tcl.inputmethod.international`: the TCL keyboard.
-- `com.tcl.providers.config`: other TCL apps read their settings from it.
-- `com.tcl.useragreement`: TCL's privacy switches.
+- `com.tcl.tvinput`: die HDMI-Eingänge und der Tuner.
+- `com.tcl.suspension`: die Eingangsauswahl.
+- `com.tcl.inputmethod.international`: die TCL-Tastatur.
+- `com.tcl.providers.config`: andere TCL-Apps lesen ihre Einstellungen daraus.
+- `com.tcl.useragreement`: die Datenschutzschalter von TCL.
 
-`com.tcl.tv` is Live TV, the channel guide and channel scanning. Turn it off only if you never watch antenna or cable TV.
+`com.tcl.tv` ist Live-TV, der Programmführer und der Sendersuchlauf. Nur ausschalten, wenn du nie Antenne oder Kabel schaust.
 
-**Optional: the phone keyboard keeps popping up.** On this TV, Google TV's phone-remote service made its phone keyboard the TV's keyboard again after every restart. If that happens to you, first note which keyboard you have now:
+**Optional: die Handy-Tastatur kommt immer wieder.** Auf diesem Fernseher hat der Handy-Fernbedienungsdienst von Google TV nach jedem Neustart seine Handy-Tastatur wieder zur TV-Tastatur gemacht. Wenn das passiert, zuerst notieren, welche Tastatur jetzt aktiv ist:
 
 ```sh
 adb shell settings get secure default_input_method
 ```
 
-Then switch to the TCL keyboard and turn the phone-remote service off:
+Dann auf die TCL-Tastatur wechseln und den Handy-Fernbedienungsdienst ausschalten:
 
 ```sh
 adb shell ime set com.tcl.inputmethod.international/.T_IME
 adb shell pm disable-user --user 0 com.google.android.tv.remote.service
 ```
 
-This also stops your phone from working as a remote: no typing, voice search or control from the Google TV or Google Home app. `undo.sh` doesn't undo it. To undo it by hand, turn the service back on and switch back to the keyboard you noted:
+Damit funktioniert das Handy nicht mehr als Fernbedienung: kein Tippen, keine Sprachsuche, keine Steuerung aus der Google-TV- oder Google-Home-App. `undo.sh` macht das nicht rückgängig. Von Hand: den Dienst wieder einschalten und zur notierten Tastatur zurück:
 
 ```sh
 adb shell pm enable com.google.android.tv.remote.service
-adb shell ime set <the keyboard you noted>
+adb shell ime set <die notierte Tastatur>
 ```
 
-**The TCL logo at startup** is part of the TV's firmware, so it can't be turned off. On this TV, turning it off with the remote (not at the wall) let TCL's quick start wake it straight to the home screen, with no logo.
+**Das TCL-Logo beim Start** steckt in der Firmware und lässt sich nicht ausschalten. Auf diesem Fernseher hat Ausschalten mit der Fernbedienung (nicht an der Steckdose) den Schnellstart von TCL direkt auf den Startbildschirm geweckt, ohne Logo.
 
 </details>
 
 <details>
-<summary><b>The Claude app says it can't reach my TV</b></summary>
+<summary><b>Die Claude-App sagt, sie erreicht meinen Fernseher nicht</b></summary>
 <br>
 
-The chat in the Claude app (and claude.ai) runs on Anthropic's servers, not on your laptop, so it can't see your TV. You need something that runs on your own laptop: [Claude Code](https://claude.com/claude-code) or [Codex](https://openai.com/codex).
+Der Chat in der Claude-App (und auf claude.ai) läuft auf den Servern von Anthropic, nicht auf deinem Laptop, und sieht den Fernseher nicht. Du brauchst etwas, das auf deinem eigenen Laptop läuft: [Claude Code](https://claude.com/claude-code) oder [Codex](https://openai.com/codex).
 
-Don't want to pay for either? Skip the AI and use `install.sh` instead (see "Can I install the home screen without AI?" below).
+Weder das eine noch das andere zahlen? Die KI weglassen und `install.sh` benutzen (siehe unten und [docs/anleitung.md](docs/anleitung.md)).
 
 </details>
 
 <details>
-<summary><b>Can I do it from my phone, without a laptop?</b></summary>
+<summary><b>Geht das vom Handy, ohne Laptop?</b></summary>
 <br>
 
-Not yet. Claude has to run on a computer on the same network as your TV. A phone hotspot is fine as that network, as long as the laptop and TV both join it.
+Noch nicht. Die Steuerung muss auf einem Computer im selben Netz wie der Fernseher laufen. Ein Handy-Hotspot als dieses Netz geht, solange Laptop und Fernseher beide darin sind.
 
 </details>
 
 <details>
-<summary><b>My TV is on Ethernet, not Wi-Fi</b></summary>
+<summary><b>Mein Fernseher hängt am Ethernet, nicht am WLAN</b></summary>
 <br>
 
-That works the same. Your laptop talks to the TV over its IP address on your home network, so cable or Wi-Fi doesn't matter. The laptop just has to be on the same network. You'll find the TV's IP in its network settings, or ask Claude to find it.
+Das funktioniert genauso. Der Laptop spricht den Fernseher über seine IP im Heimnetz an, Kabel oder WLAN ist egal. Der Laptop muss nur im selben Netz sein. Die IP steht in den Netzwerkeinstellungen des Fernsehers.
 
 </details>
 
 <details>
-<summary><b>Can I just do the cleanup and keep my TV's home screen?</b></summary>
+<summary><b>Kann ich nur aufräumen und den Startbildschirm des Fernsehers behalten?</b></summary>
 <br>
 
-Yes. Leave out step 5 of the prompt ("Install the home screen"). Your TV looks the same, just with the junk turned off.
+Ja. Schritt 5 der Eingabe weglassen („Installiere den Startbildschirm“). Der Fernseher sieht aus wie vorher, nur ohne den Ballast.
 
 </details>
 
 <details>
-<summary><b>How do I know which apps are safe to turn off?</b></summary>
+<summary><b>Woher weiß ich, welche Apps ich ausschalten darf?</b></summary>
 <br>
 
-Run the planner. It reads the TV and prints every app with a verdict, changing nothing:
+Den Planer laufen lassen. Er liest den Fernseher und druckt jede App mit einem Urteil, ohne etwas zu ändern:
 
 ```sh
 sh candidates.sh <TV_IP>
 ```
 
-`never` the TV needs it, `keep` it carries a feature you may use, `safe` common junk, `review` unknown. [docs/debloat.md](docs/debloat.md) explains the rules behind the verdicts, the traps — apps Android restarts whatever you do, the app that carries casting, and package names that hide what the app really is — and the never-touch and commonly-safe lists.
+`never` braucht der Fernseher, `keep` trägt eine Funktion, die du nutzen kannst, `safe` ist üblicher Ballast, `review` ist unbekannt. [docs/debloat.md](docs/debloat.md) erklärt die Urteile, die Fallen (Apps, die Android immer wieder startet, die App, in der Cast steckt, Paketnamen, die verbergen, was die App wirklich ist) und die Listen „nie anfassen“ und „oft gefahrlos aus“.
 
 </details>
 
 <details>
-<summary><b>Why not just use Projectivy Launcher?</b></summary>
+<summary><b>Warum nicht einfach Projectivy Launcher?</b></summary>
 <br>
 
-You can. The cleanup is the part that makes the TV faster, and it works with any home screen. This one is here if you want something tiny and open source: one screen, no ads, no account, about 30 MB of RAM.
+Das geht. Das Aufräumen macht den Fernseher schneller und funktioniert mit jedem Startbildschirm. Dieser hier ist da, wenn du etwas Kleines und Open Source willst: ein Bildschirm, keine Werbung, kein Konto, etwa 30 MB RAM.
 
 </details>
 
 <details>
-<summary><b>The TV still opens Live TV or HDMI when it turns on</b></summary>
+<summary><b>Der Fernseher öffnet beim Einschalten weiter Live-TV oder HDMI</b></summary>
 <br>
 
-That's a TV setting, not this home screen. Ask it: *"My TV opens Live TV at startup instead of the home screen. Find that setting and turn it off."*
+Das ist eine Einstellung des Fernsehers, nicht dieser Startbildschirm. *„Mein Fernseher öffnet beim Start Live-TV statt des Startbildschirms. Finde die Einstellung und schalte sie aus.“*
 
 </details>
 
 <details>
-<summary><b>A button on the remote stopped working</b></summary>
+<summary><b>Eine Taste der Fernbedienung geht nicht mehr</b></summary>
 <br>
 
-Some remote buttons are handled by the TV's own home screen or by apps the cleanup turned off. To see which app handles which button, ask Claude: *"Run `adb shell dumpsys window policy` and tell me which apps my remote's global keys go to."* If it's an app other than your TV's home screen, turn that app back on.
+Manche Tasten bedient der eigene Startbildschirm des Fernsehers oder eine App, die das Aufräumen ausgeschaltet hat. Welche App welche Taste hat: *„Führe `adb shell dumpsys window policy` aus und sag mir, auf welche Apps die globalen Tasten meiner Fernbedienung gehen.“* Ist es eine andere App als der Startbildschirm des Fernsehers, diese App wieder einschalten.
 
-**The YouTube button on some Google TVs** (seen on Xiaomi and Vu): it goes to Google TV's own home screen, which `install.sh` turns off, so the button does nothing. Turning that home screen back on brings the button back, but your TV may then open Google TV's home screen again instead of this one. Until there's a safe fix, open YouTube from its tile on the home screen.
+**Die YouTube-Taste auf manchen Google TVs** (gesehen bei Xiaomi und Vu): sie geht auf den eigenen Startbildschirm von Google TV, den `install.sh` ausschaltet. Die Taste tut dann nichts. Diesen Startbildschirm wieder einschalten bringt die Taste zurück, der Fernseher kann dann aber wieder Google TV öffnen statt dieses Bildschirms. Bis es eine sichere Lösung gibt, YouTube über die Kachel auf dem Startbildschirm öffnen.
 
 </details>
 
 <details>
-<summary><b>An update turned something back on</b></summary>
+<summary><b>Ein Update hat etwas wieder eingeschaltet</b></summary>
 <br>
 
 ```sh
-sh check.sh <TV_IP>                  # check the home screen is still in charge
-sh check.sh <TV_IP> --fix            # and fix it
-sh check.sh <TV_IP> --fix my-tv.txt  # also check your own list of changes
+sh check.sh <TV_IP>                  # prüfen, ob der Startbildschirm noch vorne ist
+sh check.sh <TV_IP> --fix            # und reparieren
+sh check.sh <TV_IP> --fix my-tv.txt  # zusätzlich die eigene Änderungsliste prüfen
 ```
 
-Your list has one change per line, like `off com.example.app`, `global window_animation_scale 0` or `device_config activity_manager max_cached_processes 4`. Ask Claude to write it from the changes it made.
+Die Liste hat eine Änderung pro Zeile, zum Beispiel `off com.example.app`, `global window_animation_scale 0` oder `device_config activity_manager max_cached_processes 4`.
 
 </details>
 
 <details>
-<summary><b>Can I install the home screen without AI?</b></summary>
+<summary><b>Kann ich den Startbildschirm ohne KI installieren?</b></summary>
 <br>
 
-Yes. You only need `adb`. On a Mac, run `brew install android-platform-tools`. On Windows, download Google's [SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools), unzip it, and run the commands below from Git Bash. Download this repo, then:
+Ja. Du brauchst nur `adb`. Auf dem Mac: `brew install android-platform-tools`. Unter Windows die [SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools) von Google entpacken und die Befehle in Git Bash ausführen. Die eigene Fassung: [docs/anleitung.md](docs/anleitung.md). Kurz:
 
 ```sh
-sh install.sh <TV_IP>                                               # picks your TV apps for you
-sh install.sh <TV_IP> "com.netflix.ninja,com.hulu.livingroomplus"   # or choose them
-sh install.sh <TV_IP> "" "bluetooth,sound,picture"    # add settings shortcuts
+sh build.sh
+sh install.sh <TV_IP>                                               # sucht die TV-Apps selbst
+sh install.sh <TV_IP> "com.netflix.ninja,com.hulu.livingroomplus"   # oder selbst wählen
+sh install.sh <TV_IP> "" "bluetooth,sound,picture"                  # Einstellungskürzel dazu
 ```
 
-Most TVs keep opening their own home screen, so the script offers to turn that off. Nothing is uninstalled.
+Die meisten Fernseher öffnen weiter ihren eigenen Startbildschirm. Das Skript bietet an, den auszuschalten. Nichts wird deinstalliert.
 
-The cleanup half is a judgement call per app, so it's not automated. `sh candidates.sh <TV_IP>` lists every app with a verdict and [docs/debloat.md](docs/debloat.md) gives the rules, if you'd rather decide yourself than have the AI do it.
-
-</details>
-
-<details>
-<summary><b>How do I change the apps on the home screen?</b></summary>
-<br>
-
-Use the remote. Hold **OK** on an app (or press **Menu**) to:
-
-- **Move** it: use the arrows to slide it to a new spot, then press **OK** to finish.
-- **Replace** it: pick another app to take its place.
-- **Remove** it from the home screen. The app stays installed, and you can add it back any time.
-- **Uninstall** it, for apps you installed yourself. The TV asks you to confirm first.
-- **App info**, for apps that came with the TV. They can't be uninstalled, but from there you can turn them off.
-
-To add an app, pick the **Add app** tile in the bottom row. Add as many apps as you like: they wrap into rows of six, and the page scrolls once there are more than twelve. Your changes are kept until you run `install.sh` with a new app list.
+Die Aufräum-Hälfte ist eine Entscheidung pro App und deshalb nicht automatisch. `sh candidates.sh <TV_IP>` listet jede App mit Urteil, [docs/debloat.md](docs/debloat.md) enthält die Regeln.
 
 </details>
 
 <details>
-<summary><b>Can I get Wi-Fi and Bluetooth one press away?</b></summary>
+<summary><b>Wie ändere ich die Apps auf dem Startbildschirm?</b></summary>
 <br>
 
-Yes. A small network icon always sits next to the clock. It shows **Wi-Fi** (with signal bars), **Ethernet** or a crossed-out Wi-Fi when you're offline, and opens your network settings. **Bluetooth**, **Sound** and **Picture** shortcuts can join it. They're off unless you ask for them:
+Mit der Fernbedienung. **OK** auf einer App halten (oder **Menü** drücken):
+
+- **Verschieben:** mit den Pfeilen an die neue Stelle, dann **OK**.
+- **Ersetzen:** eine andere App nimmt den Platz.
+- **Vom Startbildschirm entfernen.** Die App bleibt installiert und kann jederzeit zurück.
+- **Deinstallieren**, für Apps, die du selbst installiert hast. Der Fernseher fragt vorher.
+- **App-Info**, für Apps, die mit dem Fernseher kamen. Die lassen sich nicht deinstallieren, von dort aber ausschalten.
+
+Eine App dazu: die Kachel **App hinzufügen** in der unteren Zeile. So viele Apps wie du willst. Sie laufen in Reihen zu fünfen, die Seite blättert weiter. Deine Änderungen bleiben, bis du `install.sh` mit einer neuen Appliste startest.
+
+</details>
+
+<details>
+<summary><b>Kann ich WLAN und Bluetooth auf einen Tastendruck legen?</b></summary>
+<br>
+
+Ja. Neben der Uhr sitzt immer ein kleines Netz-Symbol. Es zeigt **WLAN** (mit Balken), **Ethernet** oder durchgestrichenes WLAN, wenn du offline bist, und öffnet die Netzwerkeinstellungen. **Bluetooth**, **Ton** und **Bild** können dazukommen. Die sind aus, bis du sie verlangst:
 
 ```sh
-sh install.sh <TV_IP> "" "bluetooth,sound,picture"   # pick any of them, in any order
-sh install.sh <TV_IP> "" "none"                                    # take them away
+sh install.sh <TV_IP> "" "bluetooth,sound,picture"   # beliebige davon, in beliebiger Reihenfolge
+sh install.sh <TV_IP> "" "none"                      # wieder weg
 ```
 
-Press **Up** from your apps to reach them. A shortcut your TV has no screen for is left out. On TCL TVs, Sound and Picture open TCL's own panels.
+Von den Apps aus **Hoch** drücken, um sie zu erreichen. Ein Kürzel, für das der Fernseher keinen Bildschirm hat, wird weggelassen. Auf TCL öffnen Ton und Bild die eigenen TCL-Flächen.
 
 </details>
 
 <details>
-<summary><b>How do I undo it?</b></summary>
+<summary><b>Wie mache ich es rückgängig?</b></summary>
 <br>
 
 ```sh
 sh undo.sh <TV_IP>
 ```
 
-This turns your TV's own home screen back on and removes this one. To undo the cleanup too, ask Claude or Codex to reverse everything on its list.
+Das schaltet den eigenen Startbildschirm des Fernsehers wieder ein und entfernt diesen. Das Aufräumen zusätzlich zurück: jede notierte App mit `adb shell pm enable <Paket>` einschalten.
 
 </details>
 
 <details>
-<summary><b>My TV is stuck restarting</b></summary>
+<summary><b>Mein Fernseher startet immer wieder neu</b></summary>
 <br>
 
-Your laptop can often still connect for a few seconds each time the TV starts. Use that to turn everything back on:
+Der Laptop erreicht ihn oft ein paar Sekunden lang, jedes Mal wenn er startet. In der Zeit alles wieder einschalten:
 
 ```sh
 adb connect <TV_IP>
@@ -378,50 +386,52 @@ adb wait-for-device
 adb shell pm list packages -d
 ```
 
-That lists everything that's turned off. Turn each one back on with `adb shell pm enable <package>`, or all of them at once:
+Das listet alles Ausgeschaltete. Jede App mit `adb shell pm enable <Paket>` zurück, oder alle auf einmal:
 
 ```sh
 for p in $(adb shell pm list packages -d | tr -d '\r' | sed 's/package://'); do adb shell pm enable "$p"; done
 ```
 
-To undo just the home screen, run `sh undo.sh <TV_IP>`. Then restart the TV. You can redo the cleanup later, one app at a time.
+Nur den Startbildschirm zurück: `sh undo.sh <TV_IP>`. Danach den Fernseher neu starten. Das Aufräumen kannst du später App für App wiederholen.
 
-If the laptop never connects, use the TV's recovery mode or a factory reset. How you get there depends on the brand and model, so check your TV maker's support page.
+Erreicht der Laptop ihn nie, Recovery oder Werksreset des Fernsehers. Der Weg hängt von Marke und Modell ab, also die Support-Seite des Herstellers.
 
 </details>
 
 <details>
-<summary><b>For developers: build it yourself</b></summary>
+<summary><b>Für Entwickler: selbst bauen</b></summary>
 <br>
 
-1. Put your default apps in `apps.txt` (package names, one per line). You can also pass them to `install.sh` instead.
-2. Install Java 17 and the Android SDK. On a Mac:
+Die Windows-Schritte stehen in [docs/anleitung.md](docs/anleitung.md) und [docs/build.md](docs/build.md).
+
+1. Standard-Apps in `apps.txt` (Paketnamen, eine pro Zeile). Oder an `install.sh` übergeben.
+2. Java 17 und das Android SDK. Auf dem Mac:
    ```sh
    brew install openjdk@17
    brew install --cask android-commandlinetools
    sdkmanager "platforms;android-34" "build-tools;34.0.0"
    ```
-3. `sh build.sh`, then `sh install.sh <TV_IP>` installs your build instead of the release.
-4. `sh ci/smoke-test.sh <TV_IP or emulator>` checks it all works.
+3. `sh build.sh`, danach installiert `sh install.sh <TV_IP>` deinen Build statt der Release.
+4. `sh ci/smoke-test.sh <TV_IP oder Emulator>` prüft, ob alles läuft.
 
-HDMI inputs are found on their own. The labels follow the TV's language, with 16 languages built in. To add yours or fix a translation, edit `src/com/ansub/tvhome/Strings.java`. Keep `key.jks`, which is made on your first build: updates must be signed with the same key.
+HDMI-Eingänge findet er selbst. Die Beschriftungen folgen der Sprache des Fernsehers, 16 Sprachen sind eingebaut. Eine Sprache ergänzen oder eine Übersetzung korrigieren: `src/com/ansub/tvhome/Strings.java`. `key.jks` behalten, die beim ersten Build entsteht: Updates müssen mit demselben Schlüssel signiert sein.
 
-It's one screen of plain Java, no libraries, no Gradle. The background is drawn once, the only animation is the focus lift, and it uses about 30 MB of RAM.
+Ein Bildschirm in einfachem Java, keine Bibliotheken, kein Gradle. Der Hintergrund wird einmal gezeichnet, die einzige Animation ist das Anheben beim Fokus, und er braucht etwa 30 MB RAM.
 
 </details>
 
-## Contributing
+## Mitmachen
 
-Pull requests are welcome for fixes that keep working on every TV. This project sticks to official apps and Android's own settings, so changes that add ad blockers or unofficial apps won't be merged. If you want those, fork it and make it yours.
+Pull Requests sind willkommen für Korrekturen, die auf jedem Fernseher weiter funktionieren. Das Projekt bleibt bei offiziellen Apps und den Einstellungen von Android. Änderungen, die Werbeblocker oder inoffizielle Apps dazunehmen, werden nicht gemergt. Wer das will, forkt das Projekt und macht es zu seinem.
 
 ---
 
 <div align="center">
 
-Made by **Ansub Khan**. I build things like this with AI every week.
+**Marcel Mühmel**
 
-[**Watch on YouTube →**](https://www.youtube.com/@ansubkhan)
+Fork von [Ansub/tv-detox](https://github.com/Ansub/tv-detox) · [Ecentrix/tv-detox](https://github.com/Ecentrix/tv-detox)
 
-<sub>MIT License</sub>
+<sub>MIT-Lizenz</sub>
 
 </div>

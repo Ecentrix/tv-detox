@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TV Detox — Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="preview.css?v=37" />
+</head>
+<body>
+  <div class="stage-wrap">
+    <p class="hint">Einstellungen oben rechts · fünf Apps pro Seite · halten und verschieben · S Spotify · B Abendfrage · W Waschmaschine · R Saugroboter · T Temperaturen</p>
+    <div class="stage" id="stage" tabindex="0" role="application" aria-label="TV Detox Homescreen Preview">
+      <div class="bg" aria-hidden="true">
+        <div class="bg-glow bg-glow-a"></div>
+        <div class="bg-glow bg-glow-b"></div>
+        <div class="bg-focus" id="bg-focus"></div>
+      </div>
+
+      <div class="screen">
+        <header class="top">
+          <div class="clock">
+            <div class="ambient-greet" id="greet"></div>
+            <div class="date" id="date"></div>
+            <div class="weather weather-day" id="weather-day" hidden>
+              <span class="weather-icon" id="weather-day-icon"></span>
+              <span class="weather-temp" id="weather-day-temp"></span>
+              <span class="weather-text" id="weather-day-text"></span>
+            </div>
+            <div class="time-slot">
+              <div class="time" id="time"></div>
+            </div>
+          </div>
+          <div class="top-side">
+          <div class="top-actions">
+            <div class="weather" id="weather" hidden>
+              <span class="weather-icon" id="weather-icon"></span>
+              <span class="weather-temp" id="weather-temp"></span>
+              <span class="weather-text" id="weather-text"></span>
+            </div>
+            <button class="icon-btn" type="button" title="Netzwerk">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+                <path d="M2.5 10.5a14 14 0 0 1 19 0" />
+                <path d="M5.5 14a9.5 9.5 0 0 1 13 0" />
+                <path d="M8.8 17.2a5 5 0 0 1 6.4 0" />
+                <circle cx="12" cy="20" r="0.9" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
+            <button class="icon-btn" id="settings-btn" type="button" title="Einstellungen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+                <path d="M4 7h8M14 7h6" /><circle cx="12.5" cy="7" r="1.6" />
+                <path d="M4 17h3M9 17h11" /><circle cx="7.5" cy="17" r="1.6" />
+              </svg>
+            </button>
+          </div>
+          <div class="climate" id="climate" aria-label="Räume"></div>
+          <div class="ambient-note" id="ambient-note"></div>
+          </div>
+        </header>
+
+        <aside class="now-playing" id="now-playing">
+          <div class="np-cover" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="np-meta">
+            <div class="np-kicker">Spotify</div>
+            <div class="np-title">Blinding Lights</div>
+            <div class="np-artist">The Weeknd</div>
+            <div class="np-progress"><i id="np-progress"></i></div>
+          </div>
+        </aside>
+
+        <div class="apps-viewport">
+          <div class="apps" id="apps" aria-label="Apps"></div>
+        </div>
+        <div class="page-dots" id="page-dots" aria-hidden="true"></div>
+
+        <section class="continue-block" aria-label="Weiter gucken">
+          <h2 class="section-title">Weiter gucken</h2>
+          <div class="grid" id="continue"></div>
+        </section>
+
+        <div class="bottom-row">
+          <nav class="inputs" id="inputs" aria-label="Eingänge"></nav>
+          <div class="home" id="home" aria-label="Zuhause"></div>
+        </div>
+      </div>
+
+      <div class="settings" id="settings" hidden>
+        <p class="settings-title">Einstellungen</p>
+        <label class="settings-field">
+          <span>Helligkeit</span>
+          <input id="brightness" type="range" min="25" max="100" value="100" />
+        </label>
+        <button type="button" class="settings-choice" id="motion-toggle">Animationen an</button>
+        <p class="settings-label">Fernseher aus nach</p>
+        <div class="sleep-row" id="sleep-row">
+          <button type="button" data-minutes="10">10 Min</button>
+          <button type="button" data-minutes="20">20 Min</button>
+          <button type="button" data-minutes="30">30 Min</button>
+          <button type="button" data-minutes="45">45 Min</button>
+          <button type="button" data-minutes="60">60 Min</button>
+          <button type="button" data-minutes="0">Aus</button>
+        </div>
+        <label class="settings-field">
+          <span>Eigene Minuten</span>
+          <input id="sleep-custom" type="number" min="1" max="480" placeholder="Zahl" />
+        </label>
+        <button type="button" class="settings-choice" id="memory-btn">
+          <span>Speicher freigeben</span>
+          <span class="settings-value" id="memory-free">595 MB frei</span>
+        </button>
+        <button type="button" class="settings-choice" id="android-settings">Android-Einstellungen</button>
+      </div>
+
+      <div class="night" id="night" hidden>
+        <div class="night-card">
+          <p class="night-kicker">Nach 22 Uhr</p>
+          <p class="night-title">Soll der Fernseher ausgehen?</p>
+          <div class="night-actions">
+            <button type="button" id="night-yes">Ausschalten</button>
+            <button type="button" id="night-no">Weiter schauen</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="picker" id="picker" hidden>
+        <div class="picker-card">
+          <p class="night-kicker">Beispiel</p>
+          <p class="night-title">App hinzufügen</p>
+          <div class="picker-list" id="picker-list"></div>
+        </div>
+      </div>
+
+      <div class="power-off" id="power-off" hidden>Fernseher ist aus</div>
+
+      <div class="toast" id="toast" role="status" aria-live="polite">
+        <div class="toast-icon" id="toast-icon"></div>
+        <div>
+          <div class="toast-app">Home Assistant · jetzt</div>
+          <div class="toast-title">Waschmaschine fertig</div>
+          <div class="toast-text">Die Wäsche kann raus.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="preview.js?v=37"></script>
+</body>
+</html>

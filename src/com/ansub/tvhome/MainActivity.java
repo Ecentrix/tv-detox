@@ -11,6 +11,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -46,7 +47,20 @@ import android.widget.ScrollView;
 import android.widget.TextClock;
 import android.widget.TextView;
 
+import android.app.ActivityManager;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.PowerManager;
+import android.os.SystemClock;
+import android.widget.SeekBar;
+
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -75,7 +89,7 @@ public class MainActivity extends Activity {
     private static final String ADD = "add";
     private static final String[] EDIT_ITEMS = {"Move", "Replace", "Remove from home", "Uninstall"};
     private static final String[] EDIT_ITEMS_SYSTEM = {"Move", "Replace", "Remove from home", "App info"};
-    private static final int PER_ROW = 6, MAX_INPUTS = 4;
+    private static final int PER_ROW = 5, MAX_INPUTS = 4;
 
     // Settings shortcuts: name, label, icon. Tile keys are QUICK + name.
     private static final String QUICK = "quick:";
@@ -89,7 +103,7 @@ public class MainActivity extends Activity {
 
     // Layout is designed at 1920x1080 and scaled to the TV's real UI size by px().
     private static final int MARGIN = 96, GAP = 36, RADIUS = 22;
-    private static final int ROW1_TOP = 604, ROW_STEP = 224;
+    private static final int ROW1_TOP = 430, ROW_STEP = 250;
     private static final int GRID_MIN_TOP = 400; // more rows push the grid up, but not into the clock
     private static final int ICON_TOP = 76, ICON_BUTTON = 72, ICON_SIZE = 40, ICON_GAP = 12; // level with the date
     private float scale = 1f;
@@ -99,6 +113,7 @@ public class MainActivity extends Activity {
     private FrameLayout root; // the page, inside a vertical scroller
     private int tileW, tileH, gridTop; // app grid geometry, set by buildTiles
     private final List<View> tiles = new ArrayList<>();
+    private final List<View> watchChrome = new ArrayList<>();
     private boolean dirty = true;
     private java.util.Locale shownLocale; // the TV's language (and region) when the page was built
     private String focusedKey;
@@ -106,6 +121,16 @@ public class MainActivity extends Activity {
     private String movingKey;   // the app being moved with left/right, if any
     private TextView moveHint;  // shown above the apps while moving
     private boolean longPressed; // OK was held: swallow the key-up so the app doesn't open
+    private int appPage;
+    private boolean motionOn = true;
+    private int customMinutes = 15;
+    private boolean lateDismissed;
+    private final Handler ui = new Handler(Looper.getMainLooper());
+    private final Runnable goAmbient = this::showAmbient;
+    private Runnable sleepTask;
+    private FrameLayout stage;
+    private TextView weatherView, pageDots;
+    private View settingsLayer, ambientLayer, nightLayer, powerLayer;
 
     // Apps installed, removed or updated. This often lands once Home is already back in front (an app
     // uninstalled from the menu is gone only after Android's prompt has closed), so catch up then.
@@ -166,7 +191,22 @@ public class MainActivity extends Activity {
         moveHint.setVisibility(View.GONE);
         root.addView(moveHint, at(px(MARGIN), px(ROW1_TOP - 64), -2, -2));
 
-        setContentView(scroller);
+        stage = new FrameLayout(this);
+        stage.addView(scroller, new FrameLayout.LayoutParams(-1, -1));
+        setContentView(stage);
+
+        SharedPreferences prefs = getSharedPreferences(PREFS, 0);
+        motionOn = prefs.getBoolean("motion", true);
+        customMinutes = prefs.getInt("sleepCustom", 15);
+        applyBrightness(prefs.getInt("bright", 100));
+        weatherView = text(px(28), 0xE6FFFFFF, regular);
+        weatherView.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
+        weatherView.setText("…");
+        root.addView(weatherView, at(0, px(ICON_TOP), px(280), px(ICON_BUTTON)));
+        pageDots = text(px(22), 0x99FFFFFF, regular);
+        pageDots.setGravity(Gravity.END);
+        root.addView(pageDots, at(0, 0, -2, -2));
+        refreshWeather();
 
         IntentFilter f = new IntentFilter();
         f.addAction(Intent.ACTION_PACKAGE_ADDED);
@@ -185,6 +225,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        ui.removeCallbacksAndMessages(null);
         unregisterReceiver(packagesChanged);
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm != null) try { cm.unregisterNetworkCallback(networkChanged); } catch (Exception ignored) {}
@@ -235,7 +276,7 @@ public class MainActivity extends Activity {
             // Top up with other TV apps people installed (or updated), skipping launchers and system tools.
             Intent q = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
             for (ResolveInfo ri : pm.queryIntentActivities(q, 0)) {
-                if (out.size() >= PER_ROW) break;
+                if (out.size() >= PER_ROW * 2) break;
                 String p = ri.activityInfo.packageName;
                 int flags = ri.activityInfo.applicationInfo.flags;
                 boolean stockSystem = (flags & ApplicationInfo.FLAG_SYSTEM) != 0
@@ -251,13 +292,28 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         // Rebuild only when apps were installed, removed or updated.
-        if (dirty) {
-            dirty = false;
-            buildTiles();
-        }
+        dirty = false;
+        buildTiles();
         refreshNetwork();
+        refreshWeather();
+        considerNight();
+        bumpIdle();
         View f = getCurrentFocus();
         if (f == null && !tiles.isEmpty()) tiles.get(0).requestFocus();
+    }
+
+    @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        bumpIdle();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (settingsLayer != null) { hideSettings(); return; }
+        if (nightLayer != null) { lateDismissed = true; hideNight(); return; }
+        if (powerLayer != null) { hidePower(); return; }
+        if (ambientLayer != null) { hideAmbient(); return; }
     }
 
     // Back from a menu or a window on top (like the uninstall prompt): catch up on apps that changed.
@@ -281,9 +337,6 @@ public class MainActivity extends Activity {
         super.onConfigurationChanged(c);
         if (!java.util.Locale.getDefault().equals(shownLocale)) recreate();
     }
-
-    @Override
-    public void onBackPressed() { /* home screen: nothing to go back to */ }
 
     // Static warm gradient, drawn once by the window: no extra view, no animation.
     private Drawable background() {
@@ -315,6 +368,11 @@ public class MainActivity extends Activity {
             ((ViewGroup) wrap.getParent()).removeView(wrap);
         }
         tiles.clear();
+        for (View v : watchChrome) {
+            ViewGroup parent = (ViewGroup) v.getParent();
+            if (parent != null) parent.removeView(v);
+        }
+        watchChrome.clear();
         rowApps.clear();
         movingKey = null;
         moveHint.setVisibility(View.GONE);
@@ -327,45 +385,71 @@ public class MainActivity extends Activity {
         tileH = h;
 
         List<String> apps = appList(pm);
-        // Apps fill rows of six. With more rows the grid starts higher, so up to two rows of apps and
-        // the bottom row still fit on screen; past that the page scrolls.
-        int launchable = 0;
-        for (String pkg : apps) if (launchIntent(pm, pkg) != null) launchable++;
-        int rows = Math.max(1, (launchable + PER_ROW - 1) / PER_ROW);
-        gridTop = Math.max(px(GRID_MIN_TOP), px(ROW1_TOP) - (rows - 1) * px(ROW_STEP));
-        int bottomTop = gridTop + rows * px(ROW_STEP);
+        gridTop = px(ROW1_TOP);
         ((FrameLayout.LayoutParams) moveHint.getLayoutParams()).topMargin = gridTop - px(64);
-        root.setMinimumHeight(bottomTop + h + px(MARGIN));
 
         for (String pkg : apps) {
+            if (launchIntent(pm, pkg) == null) continue;
+            rowApps.add(pkg);
+        }
+        int pages = Math.max(1, (rowApps.size() + PER_ROW - 1) / PER_ROW);
+        if (appPage >= pages) appPage = pages - 1;
+        if (appPage < 0) appPage = 0;
+        int start = appPage * PER_ROW;
+        int end = Math.min(rowApps.size(), start + PER_ROW);
+        for (int i = start; i < end; i++) {
+            String pkg = rowApps.get(i);
             Intent li = launchIntent(pm, pkg);
-            if (li == null) continue;
             Drawable banner = null;
             try {
                 banner = pm.getActivityBanner(li);
                 if (banner == null) banner = pm.getApplicationBanner(pkg);
             } catch (Exception ignored) {}
-            String label = pkg;
-            try { label = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString(); } catch (Exception ignored) {}
-            // Apps without a TV banner get a plain tile with their normal icon.
+            String label = labelOf(pkg);
             Drawable icon = null;
             if (banner == null) try { icon = pm.getApplicationIcon(pkg); } catch (Exception ignored) {}
-            int i = rowApps.size();
-            rowApps.add(pkg);
-            addTile(root, pkg, label, banner, null, icon, gridX(i), gridY(i), w, h);
+            addTile(root, pkg, label, banner, null, icon, gridX(i), gridTop, w, h);
         }
+        StringBuilder dots = new StringBuilder();
+        for (int p = 0; p < pages; p++) {
+            if (p > 0) dots.append("  ");
+            dots.append(p == appPage ? "●" : "○");
+        }
+        pageDots.setText(pages > 1 ? dots.toString() : "");
+        FrameLayout.LayoutParams dp = (FrameLayout.LayoutParams) pageDots.getLayoutParams();
+        dp.leftMargin = getResources().getDisplayMetrics().widthPixels - m - px(160);
+        dp.topMargin = gridTop + h + px(18);
+        dp.width = px(160);
+        pageDots.setLayoutParams(dp);
 
-        // Bottom row: Play Store, HDMI inputs, Settings and Add app, six at most.
+        List<WatchNext.Item> watching = WatchNext.load(this);
+        int bottomTop = gridTop + px(ROW_STEP);
+        if (!watching.isEmpty()) {
+            int shown = Math.min(4, watching.size());
+            int cw = Math.min(w, (getResources().getDisplayMetrics().widthPixels - 2 * m - g * (shown - 1)) / shown);
+            int ch = cw * 9 / 16;
+            int titleTop = gridTop + h + px(64);
+            TextView heading = text(px(28), 0xE6FFFFFF, semibold);
+            heading.setText(de("Weiter gucken", "Continue watching"));
+            root.addView(heading, at(m, titleTop, -2, -2));
+            watchChrome.add(heading);
+            int cardTop = titleTop + px(48);
+            for (int i = 0; i < shown; i++)
+                addWatch(watching.get(i), m + i * (cw + g), cardTop, cw, ch);
+            bottomTop = cardTop + ch + px(78);
+        }
+        root.setMinimumHeight(bottomTop + h + px(MARGIN));
+
+        // Bottom row: Play Store, HDMI inputs and Add app. Settings live in the gear at the top.
         int col = 0;
         boolean store = !apps.contains(PLAY_STORE) && launchIntent(pm, PLAY_STORE) != null;
         List<TvInputInfo> inputs = hdmiInputs();
-        int room = PER_ROW - 2 - (store ? 1 : 0);
+        int room = PER_ROW - 1 - (store ? 1 : 0);
         if (inputs.size() > room) inputs = inputs.subList(0, room);
         if (store)
             addTile(root, PLAY_STORE, "Play Store", null, LineIcon.PLAY, null, m + col++ * (w + g), bottomTop, w, h);
         for (TvInputInfo in : inputs)
             addTile(root, in.getId(), inputLabel(in), null, LineIcon.HDMI, null, m + col++ * (w + g), bottomTop, w, h);
-        addTile(root, SETTINGS, Strings.t("Settings"), null, LineIcon.SETTINGS, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, ADD, Strings.t("Add app"), null, LineIcon.PLUS, null, m + col * (w + g), bottomTop, w, h);
 
         // Plain icons at the top right, level with the date: any settings shortcuts picked, then the
@@ -374,12 +458,17 @@ public class MainActivity extends Activity {
         int ib = px(ICON_BUTTON), ig = px(ICON_GAP);
         // The last icon's right edge lines up with the apps' (its focus circle sticks out past them).
         int qx = getResources().getDisplayMetrics().widthPixels - m + (ib - px(ICON_SIZE)) / 2
-                - (quick.size() + 1) * ib - quick.size() * ig;
+                - (quick.size() + 2) * ib - (quick.size() + 1) * ig;
         for (int q : quick) {
             addIcon(QUICK + QUICK_NAMES[q], Strings.t(QUICK_LABELS[q]), new LineIcon(QUICK_ICONS[q]), qx);
             qx += ib + ig;
         }
+        addIcon("launcher-settings", de("Einstellungen", "Settings"), new LineIcon(LineIcon.SETTINGS), qx);
+        qx += ib + ig;
         netIcon = addIcon(NETWORK, Strings.t("Network"), null, qx);
+        FrameLayout.LayoutParams wp = (FrameLayout.LayoutParams) weatherView.getLayoutParams();
+        wp.leftMargin = qx - px(300);
+        weatherView.setLayoutParams(wp);
         netState = -1;
         refreshNetwork();
 
@@ -442,8 +531,8 @@ public class MainActivity extends Activity {
         card.setOnFocusChangeListener((v, has) -> {
             if (has) focusedKey = key;
             if (glass) bg.setColor(has ? 0x38FFFFFF : 0x13FFFFFF);
-            v.animate().scaleX(has ? 1.1f : 1f).scaleY(has ? 1.1f : 1f).translationZ(has ? px(26) : 0)
-                    .setDuration(140).withLayer().start();
+            v.animate().scaleX(has ? 1.04f : 1f).scaleY(has ? 1.04f : 1f)
+                    .setDuration(motionOn ? 140 : 0).withLayer().start();
             if (caption != null) caption.setVisibility(has ? View.VISIBLE : View.INVISIBLE);
         });
         final boolean editable = rowApps.contains(key);
@@ -454,6 +543,24 @@ public class MainActivity extends Activity {
                     || code == KeyEvent.KEYCODE_NUMPAD_ENTER;
             boolean down = ev.getAction() == KeyEvent.ACTION_DOWN;
             if (key.equals(movingKey)) return moveKey(key, code, ok, down);
+            if (down && (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+                int idx = rowApps.indexOf(key);
+                if (idx >= 0) {
+                    int slot = idx % PER_ROW;
+                    int page = idx / PER_ROW;
+                    int pages = Math.max(1, (rowApps.size() + PER_ROW - 1) / PER_ROW);
+                    boolean back = code == KeyEvent.KEYCODE_DPAD_LEFT && slot == 0 && page > 0;
+                    boolean forward = code == KeyEvent.KEYCODE_DPAD_RIGHT
+                            && (slot == PER_ROW - 1 || idx == rowApps.size() - 1) && page + 1 < pages;
+                    if (back || forward) {
+                        appPage = page + (forward ? 1 : -1);
+                        int next = forward ? appPage * PER_ROW : Math.min(rowApps.size() - 1, appPage * PER_ROW + PER_ROW - 1);
+                        focusedKey = rowApps.get(next);
+                        buildTiles();
+                        return true;
+                    }
+                }
+            }
             if (editable && code == KeyEvent.KEYCODE_MENU) {
                 if (!down) showEditMenu(key);
                 return true;
@@ -482,6 +589,136 @@ public class MainActivity extends Activity {
         }
         parent.addView(wrap, at(x, y, w, -2));
         tiles.add(card);
+    }
+
+    // One program an app reported as in progress. Hidden entirely when the TV shares no such list.
+    private void addWatch(WatchNext.Item item, int x, int y, int w, int h) {
+        String key = "watch\n" + (item.pkg == null ? "" : item.pkg) + "\n" + item.intent;
+        FrameLayout card = new FrameLayout(this);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(px(RADIUS));
+        bg.setColor(0xFF1E1A1C);
+        card.setBackground(bg);
+        card.setClipToOutline(true);
+        ImageView poster = new ImageView(this);
+        poster.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        card.addView(poster, new FrameLayout.LayoutParams(-1, -1));
+        if (item.poster != null) loadPoster(poster, item.poster, w, h);
+
+        String app = item.pkg == null || item.pkg.isEmpty() ? "" : labelOf(item.pkg);
+        if (!app.isEmpty()) {
+            TextView badge = text(px(18), Color.WHITE, regular);
+            badge.setText(app);
+            badge.setPadding(px(12), px(6), px(12), px(6));
+            GradientDrawable pill = new GradientDrawable();
+            pill.setColor(0xCC000000);
+            pill.setCornerRadius(px(20));
+            badge.setBackground(pill);
+            FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(-2, -2);
+            bp.leftMargin = px(12);
+            bp.topMargin = px(12);
+            card.addView(badge, bp);
+        }
+        if (item.duration > 0 && item.position > 0) {
+            View track = new View(this);
+            track.setBackgroundColor(0x66FFFFFF);
+            FrameLayout.LayoutParams tp = new FrameLayout.LayoutParams(-1, px(6), Gravity.BOTTOM);
+            tp.leftMargin = px(12);
+            tp.rightMargin = px(12);
+            tp.bottomMargin = px(12);
+            card.addView(track, tp);
+            View bar = new View(this);
+            bar.setBackgroundColor(Color.WHITE);
+            int width = (int) ((w - px(24)) * Math.min(item.position, item.duration) / item.duration);
+            FrameLayout.LayoutParams fp = new FrameLayout.LayoutParams(Math.max(px(4), width), px(6), Gravity.BOTTOM);
+            fp.leftMargin = px(12);
+            fp.bottomMargin = px(12);
+            card.addView(bar, fp);
+        }
+        card.setFocusable(true);
+        card.setTag(key);
+        card.setContentDescription(item.title);
+        card.setOnFocusChangeListener((v, has) -> {
+            if (has) focusedKey = key;
+            v.animate().scaleX(has ? 1.04f : 1f).scaleY(has ? 1.04f : 1f)
+                    .setDuration(motionOn ? 140 : 0).withLayer().start();
+        });
+        card.setOnClickListener(v -> open(key));
+        card.setOnKeyListener((v, code, ev) -> {
+            boolean ok = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
+                    || code == KeyEvent.KEYCODE_NUMPAD_ENTER;
+            if (!ok) return false;
+            if (ev.getAction() == KeyEvent.ACTION_UP) open(key);
+            return true;
+        });
+
+        TextView caption = text(px(22), 0xB3FFFFFF, regular);
+        caption.setText(item.title);
+        caption.setSingleLine(true);
+        caption.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        TextView sub = text(px(18), 0x80FFFFFF, regular);
+        sub.setText(watchSub(item));
+        sub.setSingleLine(true);
+        sub.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+        FrameLayout wrap = new FrameLayout(this);
+        wrap.setClipChildren(false);
+        wrap.addView(card, new FrameLayout.LayoutParams(w, h));
+        FrameLayout.LayoutParams cp = new FrameLayout.LayoutParams(w, -2);
+        cp.topMargin = h + px(12);
+        wrap.addView(caption, cp);
+        FrameLayout.LayoutParams sp = new FrameLayout.LayoutParams(w, -2);
+        sp.topMargin = h + px(40);
+        wrap.addView(sub, sp);
+        root.addView(wrap, at(x, y, w, -2));
+        tiles.add(card);
+    }
+
+    private String watchSub(WatchNext.Item item) {
+        StringBuilder s = new StringBuilder();
+        if (item.season != null && item.season.length() > 0 && item.episode != null && item.episode.length() > 0)
+            s.append("S").append(item.season).append(" · E").append(item.episode);
+        else if (item.episodeTitle != null && item.episodeTitle.length() > 0)
+            s.append(item.episodeTitle);
+        if (item.duration > item.position && item.position >= 0 && item.duration > 0) {
+            int mins = (int) ((item.duration - item.position + 59999) / 60000);
+            if (mins > 0) {
+                if (s.length() > 0) s.append(" · ");
+                if (mins >= 60) s.append(de("noch ", "")).append(mins / 60).append(de(" Std ", " h "))
+                        .append(mins % 60).append(de(" Min", " min"));
+                else s.append(de("noch " + mins + " Min", mins + " min left"));
+            }
+        }
+        return s.toString();
+    }
+
+    private void loadPoster(ImageView iv, String uri, int w, int h) {
+        new Thread(() -> {
+            Bitmap bmp = null;
+            java.io.InputStream in = null;
+            HttpURLConnection conn = null;
+            try {
+                Uri u = Uri.parse(uri);
+                if ("http".equals(u.getScheme()) || "https".equals(u.getScheme())) {
+                    conn = (HttpURLConnection) new URL(uri).openConnection();
+                    conn.setConnectTimeout(8000);
+                    conn.setReadTimeout(8000);
+                    in = conn.getInputStream();
+                } else {
+                    in = getContentResolver().openInputStream(u);
+                }
+                BitmapFactory.Options opts = new BitmapFactory.Options();
+                opts.inSampleSize = 2;
+                bmp = BitmapFactory.decodeStream(in, null, opts);
+            } catch (Exception ignored) {
+            } finally {
+                try { if (in != null) in.close(); } catch (Exception ignored) {}
+                if (conn != null) conn.disconnect();
+            }
+            Bitmap shown = bmp;
+            if (shown == null) return;
+            runOnUiThread(() -> { if (iv.isAttachedToWindow()) iv.setImageBitmap(shown); });
+        }).start();
     }
 
     // An icon on its own, no tile or label: a glass circle shows behind it only while it's focused.
@@ -514,11 +751,16 @@ public class MainActivity extends Activity {
 
     private void open(String key) {
         Intent i;
-        if (ADD.equals(key)) {
+        if (key.startsWith("watch\n")) {
+            String[] parts = key.split("\n", 3);
+            openWatch(parts.length > 1 ? parts[1] : "", parts.length > 2 ? parts[2] : "");
+            return;
+        } else if (ADD.equals(key)) {
             showAddMenu(-1);
             return;
-        } else if (SETTINGS.equals(key)) {
-            i = new Intent(Settings.ACTION_SETTINGS);
+        } else if (SETTINGS.equals(key) || "launcher-settings".equals(key)) {
+            showSettings();
+            return;
         } else if (isInput(key)) {
             openInput(key);
             return;
@@ -532,6 +774,22 @@ public class MainActivity extends Activity {
             i = launchIntent(getPackageManager(), key);
             if (i == null) return;
         }
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try { startActivity(i); } catch (Exception ignored) {}
+    }
+
+    // Opens the episode the app reported, and the app itself when that link is gone.
+    private void openWatch(String pkg, String intentUri) {
+        if (intentUri != null && !intentUri.isEmpty()) {
+            try {
+                Intent i = Intent.parseUri(intentUri, Intent.URI_INTENT_SCHEME);
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+                return;
+            } catch (Exception ignored) {}
+        }
+        Intent i = pkg == null || pkg.isEmpty() ? null : launchIntent(getPackageManager(), pkg);
+        if (i == null) return;
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try { startActivity(i); } catch (Exception ignored) {}
     }
@@ -905,18 +1163,26 @@ public class MainActivity extends Activity {
         if (step != 0) {
             int from = rowApps.indexOf(key), to = from + step;
             if (down && to >= 0 && to < rowApps.size()) {
-                // Slide the tiles into their new places: no rebuild, so it stays quick on slow TVs.
                 rowApps.add(to, rowApps.remove(from));
-                for (int i = Math.min(from, to); i <= Math.max(from, to); i++) {
-                    View wrap = (View) tile(rowApps.get(i)).getParent();
+                if (to / PER_ROW != appPage) {
+                    appPage = to / PER_ROW;
+                    focusedKey = key;
+                    buildTiles();
+                    startMove(key);
+                    return true;
+                }
+                int a = appPage * PER_ROW, b = Math.min(rowApps.size(), a + PER_ROW);
+                for (int i = a; i < b; i++) {
+                    View shown = tile(rowApps.get(i));
+                    if (shown == null) continue;
+                    View wrap = (View) shown.getParent();
                     FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) wrap.getLayoutParams();
                     lp.leftMargin = gridX(i);
-                    lp.topMargin = gridY(i);
+                    lp.topMargin = gridTop;
                     wrap.setLayoutParams(lp);
                 }
-                // Scroll along with it once it has moved.
                 final View card = tile(key);
-                card.post(() -> card.requestRectangleOnScreen(
+                if (card != null) card.post(() -> card.requestRectangleOnScreen(
                         new android.graphics.Rect(0, 0, card.getWidth(), card.getHeight())));
             }
             return true;
@@ -956,7 +1222,12 @@ public class MainActivity extends Activity {
         CharSequence custom = in.loadCustomLabel(this);
         if (custom != null && custom.length() > 0) return custom.toString();
         CharSequence label = in.loadLabel(this);
-        return label != null && label.length() > 0 ? label.toString() : "HDMI";
+        String name = label != null && label.length() > 0 ? label.toString() : "HDMI";
+        String plain = name.toLowerCase(java.util.Locale.ROOT).replace(" ", "");
+        if (plain.equals("hdmi1")) return "PS5";
+        if (plain.equals("hdmi2")) return "Switch";
+        if (plain.equals("hdmi3")) return "Receiver";
+        return name;
     }
 
     private boolean userInstalled(String pkg) {
@@ -1025,5 +1296,331 @@ public class MainActivity extends Activity {
         lp.leftMargin = x;
         lp.topMargin = y;
         return lp;
+    }
+
+    private static String de(String german, String english) {
+        return "de".equals(Strings.lang()) ? german : english;
+    }
+
+    private void bumpIdle() {
+        ui.removeCallbacks(goAmbient);
+        if (ambientLayer == null && settingsLayer == null && nightLayer == null && powerLayer == null)
+            ui.postDelayed(goAmbient, 3L * 60L * 1000L);
+    }
+
+    private void applyBrightness(int percent) {
+        int p = Math.max(25, Math.min(100, percent));
+        Window w = getWindow();
+        android.view.WindowManager.LayoutParams lp = w.getAttributes();
+        lp.screenBrightness = p / 100f;
+        w.setAttributes(lp);
+        getSharedPreferences(PREFS, 0).edit().putInt("bright", p).apply();
+    }
+
+    private void showSettings() {
+        if (settingsLayer != null) return;
+        hideAmbient();
+        FrameLayout layer = new FrameLayout(this);
+        layer.setOnClickListener(v -> hideSettings());
+        LinearLayout menu = new LinearLayout(this);
+        menu.setOrientation(LinearLayout.VERTICAL);
+        menu.setClickable(true);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(0xFF12100F);
+        bg.setCornerRadius(px(RADIUS));
+        menu.setBackground(bg);
+        menu.setPadding(px(28), px(24), px(28), px(24));
+        TextView title = text(px(28), Color.WHITE, semibold);
+        title.setText(de("Einstellungen", "Settings"));
+        menu.addView(title);
+
+        TextView brightLabel = text(px(22), 0xB3FFFFFF, regular);
+        brightLabel.setText(de("Helligkeit", "Brightness"));
+        LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(-1, -2);
+        gap.topMargin = px(22);
+        menu.addView(brightLabel, gap);
+        SeekBar bar = new SeekBar(this);
+        bar.setMax(75);
+        bar.setProgress(getSharedPreferences(PREFS, 0).getInt("bright", 100) - 25);
+        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar s, int progress, boolean fromUser) {
+                if (fromUser) applyBrightness(progress + 25);
+            }
+            @Override public void onStartTrackingTouch(SeekBar s) {}
+            @Override public void onStopTrackingTouch(SeekBar s) {}
+        });
+        menu.addView(bar, gap);
+
+        menu.addView(settingsRow(motionOn ? de("Animationen an", "Animations on")
+                : de("Animationen aus", "Animations off"), () -> {
+            motionOn = !motionOn;
+            getSharedPreferences(PREFS, 0).edit().putBoolean("motion", motionOn).apply();
+            hideSettings();
+            buildTiles();
+            showSettings();
+        }), gap);
+
+        TextView sleep = text(px(22), 0xB3FFFFFF, regular);
+        sleep.setText(de("TV ausschalten nach", "Turn the TV off after"));
+        menu.addView(sleep, gap);
+        int[] minutes = {10, 20, 30, 45, 60, 0};
+        for (int min : minutes) {
+            String label = min == 0 ? de("Aus", "Off") : min + " Min";
+            menu.addView(settingsRow(label, () -> armSleep(min)), new LinearLayout.LayoutParams(-1, -2));
+        }
+        menu.addView(settingsRow(de("Eigene Zeit: ", "Custom: ") + customMinutes + " Min", () -> armSleep(customMinutes)), gap);
+        TextView hint = text(px(18), 0x80FFFFFF, regular);
+        hint.setText(de("Links und rechts ändern die eigene Zeit", "Left and right change the custom time"));
+        menu.addView(hint);
+        View custom = menu.getChildAt(menu.getChildCount() - 2);
+        custom.setOnKeyListener((v, code, ev) -> {
+            if (ev.getAction() != KeyEvent.ACTION_DOWN) return false;
+            int step = code == KeyEvent.KEYCODE_DPAD_RIGHT ? 5 : code == KeyEvent.KEYCODE_DPAD_LEFT ? -5 : 0;
+            if (step == 0) return false;
+            customMinutes = Math.max(1, Math.min(480, customMinutes + step));
+            getSharedPreferences(PREFS, 0).edit().putInt("sleepCustom", customMinutes).apply();
+            ((TextView) v).setText(de("Eigene Zeit: ", "Custom: ") + customMinutes + " Min");
+            return true;
+        });
+
+        ActivityManager.MemoryInfo info = new ActivityManager.MemoryInfo();
+        ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        if (am != null) am.getMemoryInfo(info);
+        long free = info.availMem / (1024 * 1024);
+        menu.addView(settingsRow(de("Speicher freigeben", "Free up memory") + " · " + free + " MB", () -> {
+            android.widget.Toast.makeText(this, free + " MB " + de("frei. Android räumt selbst auf.",
+                    "free. Android clears memory on its own."), android.widget.Toast.LENGTH_LONG).show();
+        }), gap);
+        menu.addView(settingsRow(de("Android-Einstellungen", "Android settings"), () -> {
+            hideSettings();
+            try { startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
+            catch (Exception ignored) {}
+        }), gap);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(menu);
+        scroll.setClickable(true);
+        int width = px(520);
+        FrameLayout.LayoutParams mp = new FrameLayout.LayoutParams(width, -2);
+        mp.gravity = Gravity.TOP | Gravity.END;
+        mp.topMargin = px(150);
+        mp.rightMargin = px(84);
+        layer.addView(scroll, mp);
+        stage.addView(layer, new FrameLayout.LayoutParams(-1, -1));
+        settingsLayer = layer;
+        menu.getChildAt(2).requestFocus();
+        bumpIdle();
+    }
+
+    private TextView settingsRow(String label, Runnable action) {
+        TextView row = text(px(24), Color.WHITE, regular);
+        row.setText(label);
+        row.setFocusable(true);
+        row.setMinHeight(px(64));
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(px(16), 0, px(16), 0);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(px(12));
+        row.setBackground(bg);
+        row.setOnFocusChangeListener((v, has) -> bg.setColor(has ? 0x33FFFFFF : Color.TRANSPARENT));
+        row.setOnClickListener(v -> action.run());
+        return row;
+    }
+
+    private void hideSettings() {
+        if (settingsLayer == null) return;
+        stage.removeView(settingsLayer);
+        settingsLayer = null;
+        bumpIdle();
+    }
+
+    private void armSleep(int minutes) {
+        if (sleepTask != null) ui.removeCallbacks(sleepTask);
+        sleepTask = null;
+        hideSettings();
+        if (minutes <= 0) {
+            android.widget.Toast.makeText(this, de("Ausschalten aus", "Sleep timer off"),
+                    android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        sleepTask = this::showPower;
+        ui.postDelayed(sleepTask, minutes * 60L * 1000L);
+        android.widget.Toast.makeText(this, de("TV aus in ", "TV off in ") + minutes + " Min",
+                android.widget.Toast.LENGTH_SHORT).show();
+    }
+
+    private void showPower() {
+        if (powerLayer != null) return;
+        hideSettings();
+        hideAmbient();
+        hideNight();
+        FrameLayout black = new FrameLayout(this);
+        black.setBackgroundColor(Color.BLACK);
+        TextView t = text(px(42), Color.WHITE, semibold);
+        t.setText(de("Fernseher aus", "TV off"));
+        t.setGravity(Gravity.CENTER);
+        black.addView(t, new FrameLayout.LayoutParams(-1, -1));
+        black.setClickable(true);
+        black.setFocusable(true);
+        black.setOnKeyListener((v, code, ev) -> {
+            if (ev.getAction() == KeyEvent.ACTION_DOWN) { hidePower(); bumpIdle(); }
+            return true;
+        });
+        black.setOnClickListener(v -> { hidePower(); bumpIdle(); });
+        stage.addView(black, new FrameLayout.LayoutParams(-1, -1));
+        powerLayer = black;
+        black.requestFocus();
+        try {
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            java.lang.reflect.Method go = PowerManager.class.getMethod("goToSleep", long.class);
+            go.invoke(pm, SystemClock.uptimeMillis());
+        } catch (Exception e) {
+            android.widget.Toast.makeText(this, de("Zum Ausschalten die TV-Taste drücken.",
+                    "Press the TV button on the remote to turn it off."), android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void hidePower() {
+        if (powerLayer == null) return;
+        stage.removeView(powerLayer);
+        powerLayer = null;
+    }
+
+    private void showAmbient() {
+        if (ambientLayer != null || settingsLayer != null || nightLayer != null || powerLayer != null) return;
+        FrameLayout layer = new FrameLayout(this);
+        layer.setBackgroundColor(0xF0050405);
+        layer.setClickable(true);
+        java.util.Calendar now = java.util.Calendar.getInstance();
+        int hour = now.get(java.util.Calendar.HOUR_OF_DAY);
+        String hello = hour < 11 ? de("Guten Morgen", "Good morning")
+                : hour < 18 ? de("Guten Tag", "Good afternoon") : de("Guten Abend", "Good evening");
+        TextView greet = text(px(36), 0xD9FFFFFF, regular);
+        greet.setText(hello);
+        greet.setGravity(Gravity.CENTER_HORIZONTAL);
+        layer.addView(greet, at(0, px(140), -1, -2));
+        TextClock date = clock(Strings.datePattern(), Strings.datePattern(), px(32), 0xB3FFFFFF, regular);
+        date.setGravity(Gravity.CENTER_HORIZONTAL);
+        layer.addView(date, at(0, px(210), -1, -2));
+        TextView outside = text(px(30), 0xE6FFFFFF, regular);
+        outside.setGravity(Gravity.CENTER_HORIZONTAL);
+        outside.setText(weatherView.getText());
+        layer.addView(outside, at(0, px(270), -1, -2));
+        TextClock time = clock("h:mm", "H:mm", px(210), Color.WHITE, semibold);
+        time.setGravity(Gravity.CENTER);
+        time.setLetterSpacing(-0.028f);
+        FrameLayout.LayoutParams tp = new FrameLayout.LayoutParams(-1, -2);
+        tp.gravity = Gravity.CENTER;
+        layer.addView(time, tp);
+        layer.setOnClickListener(v -> { hideAmbient(); considerNight(); });
+        layer.setOnKeyListener((v, code, ev) -> {
+            if (ev.getAction() != KeyEvent.ACTION_DOWN) return true;
+            hideAmbient();
+            considerNight();
+            return true;
+        });
+        layer.setFocusable(true);
+        stage.addView(layer, new FrameLayout.LayoutParams(-1, -1));
+        ambientLayer = layer;
+        layer.requestFocus();
+    }
+
+    private void hideAmbient() {
+        if (ambientLayer == null) return;
+        stage.removeView(ambientLayer);
+        ambientLayer = null;
+        bumpIdle();
+    }
+
+    private void considerNight() {
+        java.util.Calendar now = java.util.Calendar.getInstance();
+        int hour = now.get(java.util.Calendar.HOUR_OF_DAY);
+        boolean quiet = hour >= 22 || hour < 6;
+        if (quiet && !lateDismissed && ambientLayer == null && powerLayer == null) showNight();
+    }
+
+    private void showNight() {
+        if (nightLayer != null) return;
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER_HORIZONTAL);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(0xF012100F);
+        bg.setCornerRadius(px(RADIUS));
+        box.setBackground(bg);
+        box.setPadding(px(48), px(40), px(48), px(40));
+        TextView q = text(px(32), Color.WHITE, semibold);
+        q.setText(de("Gute Nacht?", "Good night?"));
+        q.setGravity(Gravity.CENTER);
+        box.addView(q);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-2, -2);
+        rp.topMargin = px(28);
+        TextView yes = settingsRow(de("Ausschalten", "Turn off"), () -> {
+            lateDismissed = true;
+            hideNight();
+            showPower();
+        });
+        TextView no = settingsRow(de("Weiter", "Stay on"), () -> {
+            lateDismissed = true;
+            hideNight();
+            bumpIdle();
+        });
+        LinearLayout.LayoutParams yp = new LinearLayout.LayoutParams(px(220), -2);
+        yp.rightMargin = px(16);
+        row.addView(yes, yp);
+        row.addView(no, new LinearLayout.LayoutParams(px(220), -2));
+        box.addView(row, rp);
+        FrameLayout layer = new FrameLayout(this);
+        layer.setBackgroundColor(0x99000000);
+        FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(px(640), -2);
+        bp.gravity = Gravity.CENTER;
+        layer.addView(box, bp);
+        stage.addView(layer, new FrameLayout.LayoutParams(-1, -1));
+        nightLayer = layer;
+        yes.requestFocus();
+    }
+
+    private void hideNight() {
+        if (nightLayer == null) return;
+        stage.removeView(nightLayer);
+        nightLayer = null;
+    }
+
+    private void refreshWeather() {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                String url = "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41"
+                        + "&current=temperature_2m,weather_code&timezone=auto";
+                conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(8000);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder body = new StringBuilder();
+                for (String line; (line = reader.readLine()) != null; ) body.append(line);
+                reader.close();
+                JSONObject current = new JSONObject(body.toString()).getJSONObject("current");
+                int temp = (int) Math.round(current.getDouble("temperature_2m"));
+                String sky = sky(current.getInt("weather_code"));
+                String line = temp + "°  " + sky;
+                runOnUiThread(() -> weatherView.setText(line));
+            } catch (Exception ignored) {
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }).start();
+    }
+
+    private String sky(int code) {
+        if (code == 0) return de("klar", "clear");
+        if (code <= 3) return de("bewölkt", "cloudy");
+        if (code <= 48) return de("neblig", "fog");
+        if (code <= 67) return de("Regen", "rain");
+        if (code <= 77) return de("Schnee", "snow");
+        if (code <= 82) return de("Schauer", "showers");
+        return de("Gewitter", "storm");
     }
 }
